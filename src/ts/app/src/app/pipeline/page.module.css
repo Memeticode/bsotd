@@ -1,0 +1,46 @@
+.overview {
+  max-width: 72ch;
+}
+
+.title {
+  margin: 0 0 8px;
+  font-size: 1.75rem;
+}
+
+.description {
+  margin: 0 0 20px;
+  color: var(--text-muted);
+}
+
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 0 0 20px;
+  padding: 0;
+  list-style: none;
+}
+
+.counts li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.hint {
+  margin: 0 0 32px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+}
+
+.heading {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+}
+
+.principles {
+  margin: 0;
+  padding-left: 22px;
+}

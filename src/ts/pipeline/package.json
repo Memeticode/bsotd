@@ -1,0 +1,14 @@
+{
+  "name": "@bsotd/pipeline",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./core": "./src/core/index.ts"
+  },
+  "scripts": {
+    "test": "node --test \"__tests__/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  }
+}

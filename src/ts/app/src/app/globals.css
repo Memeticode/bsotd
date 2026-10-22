@@ -1,0 +1,95 @@
+:root {
+  color-scheme: light dark;
+
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --surface-muted: #f0f0ed;
+  --border: #e2e2dd;
+  --border-strong: #c4c4bd;
+  --text: #1d1d1b;
+  --text-muted: #66665f;
+  --accent: #2f5bd3;
+  --accent-soft: #e9eefb;
+  --on-accent: #ffffff;
+  --danger: #b42318;
+
+  --status-implemented: #2f8f5b;
+  --status-in-progress: #c48a10;
+  --status-todo: #9b9b94;
+
+  --radius: 8px;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131312;
+    --surface: #1b1b1a;
+    --surface-muted: #252523;
+    --border: #2f2f2c;
+    --border-strong: #4c4c47;
+    --text: #ededea;
+    --text-muted: #a3a39c;
+    --accent: #7c9cf5;
+    --accent-soft: #1f2a44;
+    --on-accent: #0e1424;
+    --danger: #f97066;
+
+    --status-implemented: #4cc38a;
+    --status-in-progress: #e0a83a;
+    --status-todo: #7d7d76;
+  }
+}
+
+/* Lets any element coloured by status use var(--status-color). */
+[data-status="implemented"] {
+  --status-color: var(--status-implemented);
+}
+
+[data-status="in-progress"] {
+  --status-color: var(--status-in-progress);
+}
+
+[data-status="todo"] {
+  --status-color: var(--status-todo);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.25;
+}
+
+a {
+  color: var(--accent);
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

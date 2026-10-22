@@ -1,0 +1,19 @@
+{
+  "name": "bsotd",
+  "private": true,
+  "workspaces": [
+    "pipeline",
+    "app"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @bsotd/app",
+    "build": "npm run build --workspace @bsotd/app",
+    "start": "npm run start --workspace @bsotd/app",
+    "test": "npm test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,0 +1,38 @@
+.canvas {
+  position: relative;
+  flex: none;
+}
+
+.edges {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.edge,
+.activeEdge {
+  fill: none;
+  stroke-width: 1.5;
+}
+
+.edge {
+  stroke: var(--border-strong);
+}
+
+.activeEdge {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.arrow {
+  fill: var(--border-strong);
+}
+
+.activeArrow {
+  fill: var(--accent);
+}
+
+.node {
+  position: absolute;
+  display: flex;
+}

@@ -1,0 +1,12 @@
+.value {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.null {
+  color: var(--text-muted);
+  font-style: italic;
+}

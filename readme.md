@@ -25,26 +25,32 @@ The ultimate goal is to help readers understand not only *what happened*, but al
 The system follows a modular pipeline:
 
 ```text
-News APIs
+GNews API
     ↓
 Raw Data Ingestion
     ↓
-PostgreSQL
+JSONB Extraction
     ↓
-Article Deduplication & Story Identification
+Exact Deduplication
+    ↓
+Sentence Embeddings  +  TF-IDF Vectors
+    ↓
+Daily Article Pair Similarity
+    ↓
+Story Clustering
     ↓
 Story Relevance Classification
     ↓
-Human Review & Editorial Overrides
+LLM-Based Story Analysis
     ↓
-Daily Story Selection
-    ↓
-LLM-Based Claim Extraction & Comparison
-    ↓
-Story-Centric News Presentation
+Story-Centric Presentation
 ```
 
+PostgreSQL is the central data store between stages, and human review and editorial overrides remain possible at every major stage.
+
 Each stage is designed to operate independently, allowing processing strategies and models to evolve without requiring changes to the underlying ingestion system.
+
+The full pipeline definition, with each step's transformations, datasets and implementation status, lives in `src/ts/pipeline`.
 
 ### Data Ingestion
 
@@ -68,14 +74,16 @@ The system will distinguish between agreement, unique coverage, omission, and co
 
 | Component | Technology |
 |---|---|
-| Primary language | Python |
-| Database | PostgreSQL |
+| Pipeline processing | Python |
+| Pipeline definition and app | TypeScript |
+| Database | PostgreSQL with pgvector |
 | HTTP client | HTTPX |
 | Database connectivity | Psycopg 3 |
 | Data source | GNews API |
-| Machine learning | To be determined |
+| Sentence embeddings | fastembed with BAAI/bge-small-en-v1.5 |
+| Machine learning | scikit-learn (TF-IDF; classifiers to be determined) |
 | LLM analysis | To be determined |
-| Application / UI | To be determined |
+| Application / UI | Next.js |
 
 ## Project Structure
 
@@ -86,12 +94,28 @@ src/db/
 src/py/news/
   clients/
     gnews_client.py
+  embedding/
+    gnews_article_embedding.py
+    text_embedder.py
   ingestion/
     gnews_ingestion.py
   repository/
+    gnews_article_embedding_repository.py
     gnews_article_repository.py
 
+src/ts/            npm workspace for the TypeScript packages
+  pipeline/        @bsotd/pipeline: steps, transformations and datasets
+    src/
+      core/        Models and enums, validation, step graph and status
+      steps/       One module per pipeline step
+      index.ts     The news pipeline
+    __tests__/
+  app/             @bsotd/app: Next.js app that shows the pipeline
+    src/
+    __tests__/
+
 scripts/
+  embed_gnews.py
   ingest_gnews.py
 ```
 
@@ -135,4 +159,4 @@ The intended production application will focus primarily on the **Nation** categ
 
 ---
 
-**Project Status:** Early development — building the data ingestion foundation and preparing for experiments in story identification and relevance classification.
+**Project Status:** Early development — ingestion, extraction, exact deduplication and sentence embeddings are in place; TF-IDF vectors and daily pair similarity are designed; story clustering and relevance classification are next.

@@ -7,10 +7,20 @@
 
 # Python generated files
 __pycache__/
-*__pycache__/
 *.py[cod]
 .pytest_cache/
 .ruff_cache/
+
+# Node dependencies
+node_modules/
+npm-debug.log*
+
+# Next.js build output and generated types
+.next/
+next-env.d.ts
+
+# TypeScript incremental build info
+*.tsbuildinfo
 
 # Build artifacts
 build/

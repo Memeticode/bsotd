@@ -189,8 +189,35 @@ CREATE TABLE news.gnews_article_title_and_description_embedding (
         UNIQUE (gnews_article_id, model, input_hash)
 );
 
+
 -- pipeline step
--- embeddings are linked back to deduped artivles
+-- tf-idf corpus per category and date
+
+CREATE TABLE news.gnews_article_title_and_description_tfidf_corpus (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+
+    category text NOT NULL,
+    published_date date NOT NULL,
+
+    configuration jsonb NOT NULL,
+    vocabulary jsonb NOT NULL,
+    idf_weights double precision[] NOT NULL,
+
+    document_count integer NOT NULL
+        CHECK (document_count > 0),
+
+    created_at timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT uq_gnews_tfidf_corpus
+        UNIQUE (category, published_date)
+);
+
+-- pipeline step
+-- tf-idf values per article
+
+
+-- pipeline step
+-- embeddings and tf-idf values are linked back to deduped articles
 
 CREATE OR REPLACE VIEW news.v_gnews_article_title_and_description_embedded AS
 SELECT
