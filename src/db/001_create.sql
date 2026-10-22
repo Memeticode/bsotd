@@ -1,7 +1,11 @@
+-- assumes that postgres has pgvector extension installed (0.8.7)
+CREATE EXTENSION IF NOT EXISTS vector;
+
 CREATE SCHEMA IF NOT EXISTS news;
 
--- assumes that pos
-CREATE EXTENSION IF NOT EXISTS vector;
+-- pipeline step
+-- python script loads data to the news.gnews_article table
+
 CREATE TABLE news.gnews_article (
     id                  bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 
@@ -37,7 +41,8 @@ CREATE INDEX ix_gnews_article_collection
 CREATE INDEX ix_gnews_article_data
     ON news.gnews_article USING gin (data);
 
-
+-- pipeline step
+-- extract article title, desc, content, etc.
     
 CREATE OR REPLACE VIEW news.v_gnews_article AS
 SELECT
@@ -73,7 +78,8 @@ SELECT
 FROM news.gnews_article a;
 
 
-
+-- pipeline step
+-- dedupe articles by title and description
 DROP VIEW IF EXISTS news.v_gnews_article_deduped;
 
 CREATE VIEW news.v_gnews_article_deduped AS
@@ -162,10 +168,10 @@ SELECT
 FROM ranked
 WHERE rn = 1;
 
+-- pipeline step
+-- python script generates embeddings based on title and description
 
-
-
-CREATE TABLE news.gnews_article_embedding (
+CREATE TABLE news.gnews_article_title_and_description_embedding (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 
     gnews_article_id bigint NOT NULL
@@ -182,4 +188,21 @@ CREATE TABLE news.gnews_article_embedding (
     CONSTRAINT uq_gnews_article_embedding
         UNIQUE (gnews_article_id, model, input_hash)
 );
+
+-- pipeline step
+-- embeddings are linked back to deduped artivles
+
+CREATE OR REPLACE VIEW news.v_gnews_article_title_and_description_embedded AS
+SELECT
+    a.*,
+    e.model AS embedding_model,
+    e.input_hash AS embedding_input_hash,
+    e.embedding,
+    e.created_at AS embedded_at
+
+FROM news.v_gnews_article_deduped a
+
+JOIN news.gnews_article_title_and_description_embedding e
+    ON e.gnews_article_id = a.id;
+
 
