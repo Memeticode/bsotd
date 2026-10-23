@@ -7,9 +7,9 @@ import psycopg
 
 @dataclass(frozen=True)
 class VectorStatus:
-    # Article ID -> (title, description), for every article with a
-    # vector of either kind.
-    articles: dict[int, tuple[str | None, str | None]]
+    # Article ID -> (title, description, content), for every article with
+    # a vector of either kind.
+    articles: dict[int, tuple[str | None, str | None, str | None]]
     # Article ID -> input hashes it has embeddings for, with the model.
     embedding_hashes: dict[int, frozenset[str]]
     # The day's TF-IDF corpus, if fitted, and article ID -> the input
@@ -30,17 +30,28 @@ class GNewsArticleSimilarityRepository:
     the day's pairs."""
 
     EMBEDDINGS_SQL = """
-        SELECT id, title, description, array_agg(embedding_input_hash)
-        FROM news.v_gnews_article_title_and_description_embedded
+        SELECT
+            id,
+            title,
+            description,
+            content,
+            array_agg(embedding_input_hash)
+        FROM news.v_gnews_article_embedded
         WHERE category = %(category)s
           AND published_date = %(published_date)s
           AND embedding_model = %(model)s
-        GROUP BY id, title, description;
+        GROUP BY id, title, description, content;
     """
 
     TFIDF_SQL = """
-        SELECT id, title, description, tfidf_corpus_id, tfidf_input_hash
-        FROM news.v_gnews_article_title_and_description_tfidf
+        SELECT
+            id,
+            title,
+            description,
+            content,
+            tfidf_corpus_id,
+            tfidf_input_hash
+        FROM news.v_gnews_article_tfidf
         WHERE category = %(category)s
           AND published_date = %(published_date)s;
     """
@@ -79,11 +90,11 @@ class GNewsArticleSimilarityRepository:
                 e.embedding,
                 t.tfidf
             FROM current_article c
-            JOIN news.v_gnews_article_title_and_description_embedded e
+            JOIN news.v_gnews_article_embedded e
                 ON e.id = c.id
                AND e.embedding_model = %(model)s
                AND e.embedding_input_hash = c.input_hash
-            JOIN news.v_gnews_article_title_and_description_tfidf t
+            JOIN news.v_gnews_article_tfidf t
                 ON t.id = c.id
                AND t.tfidf_corpus_id = %(corpus_id)s
                AND t.tfidf_input_hash = c.input_hash
@@ -134,20 +145,21 @@ class GNewsArticleSimilarityRepository:
             tfidf = conn.execute(self.TFIDF_SQL, day).fetchall()
 
         articles = {
-            article_id: (title, description)
-            for article_id, title, description, *_ in [*embeddings, *tfidf]
+            article_id: (title, description, content)
+            for article_id, title, description, content, *_
+            in [*embeddings, *tfidf]
         }
 
         return VectorStatus(
             articles=articles,
             embedding_hashes={
                 article_id: frozenset(hashes)
-                for article_id, _, _, hashes in embeddings
+                for article_id, *_, hashes in embeddings
             },
-            corpus_id=tfidf[0][3] if tfidf else None,
+            corpus_id=tfidf[0][4] if tfidf else None,
             tfidf_hashes={
                 article_id: input_hash
-                for article_id, _, _, _, input_hash in tfidf
+                for article_id, *_, input_hash in tfidf
             },
         )
 

@@ -2,26 +2,34 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { SiteHeader } from "@/components/site/SiteHeader";
+import { DayClaims } from "@/components/stories/DayClaims";
 import { DayNav } from "@/components/stories/DayNav";
-import { StoryCard } from "@/components/stories/StoryCard";
-import { Collapsible } from "@/components/ui/Collapsible";
+import { DayStories } from "@/components/stories/DayStories";
+import { ViewSwitch } from "@/components/stories/ViewSwitch";
 import { Notice } from "@/components/ui/Notice";
 import type { SearchParams } from "@/lib/pagination";
-import { fetchFeed, fetchStoryDays, type FeedStory } from "@/lib/stories";
 import {
+  fetchDayClaims,
+  fetchDayOutlets,
+  fetchFeed,
+  fetchStoryDays,
+} from "@/lib/stories";
+import {
+  DayView,
   adjacentDays,
   categoryLabel,
-  count,
-  formatDay,
+  parseAgreement,
+  parseDayView,
   storyTitle,
 } from "@/lib/story-display";
 import styles from "./page.module.css";
 
 interface HomePageProps {
+  /** category, date, view ("claims" for the claims view) and status. */
   searchParams: Promise<SearchParams>;
 }
 
-/** The day's stories in one category, most relevant first. */
+/** A day's stories in one category, most relevant first, or their claims. */
 export default async function HomePage({ searchParams }: HomePageProps) {
   const params = await searchParams;
   const days = await fetchStoryDays();
@@ -66,11 +74,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   );
   const day = dayExists ? requestedDay! : latestDays.get(category)!;
 
-  const label = categoryLabel(category);
-  const stories = await fetchFeed(category, day);
-  const fitting = stories.filter((story) => story.fitsCategory === true);
-  const unrated = stories.filter((story) => story.fitsCategory === null);
-  const outside = stories.filter((story) => story.fitsCategory === false);
+  const view = parseDayView(single(params.view));
+  const status =
+    view === DayView.Claims ? parseAgreement(single(params.status)) : undefined;
+
+  const [stories, claims, outlets] = await Promise.all([
+    fetchFeed(category, day),
+    fetchDayClaims(category, day),
+    fetchDayOutlets(category, day),
+  ]);
 
   return (
     <Page>
@@ -78,51 +90,43 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         category={category}
         day={day}
         categories={categories}
+        view={view}
+        status={status}
         {...adjacentDays(days, category, day)}
       />
 
       {requestedDay !== undefined && !dayExists && (
         <Notice tone="warning">
-          There are no {label.toLowerCase()} stories for{" "}
+          There are no {categoryLabel(category).toLowerCase()} stories for{" "}
           {requestedDay}, so this is the latest day.
         </Notice>
       )}
 
-      <p className={styles.stats}>
-        {count(stories.length, "story", "stories")} from{" "}
-        {count(totalArticles(stories), "article")}, most relevant first.
-      </p>
+      <ViewSwitch
+        category={category}
+        day={day}
+        view={view}
+        storyCount={stories.length}
+        claimCount={claims.length}
+      />
 
-      {fitting.length > 0 && <Feed stories={fitting} />}
-
-      {unrated.length > 0 && (
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Not rated yet</h2>
-          <p className={styles.sectionNote}>
-            Rating runs after clustering: <code>rate_gnews.py</code> for{" "}
-            {formatDay(day)}.
-          </p>
-          <Feed stories={unrated} />
-        </section>
-      )}
-
-      {outside.length > 0 && (
-        <section className={styles.section}>
-          <Collapsible
-            summary={`${count(outside.length, "story", "stories")} outside ${label}`}
-          >
-            <ul className={styles.outside}>
-              {outside.map((story) => (
-                <li key={story.id}>
-                  <Link href={`/stories/${story.id}`}>{storyTitle(story)}</Link>{" "}
-                  <span className={styles.muted}>
-                    {count(story.articleCount, "article")}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </Collapsible>
-        </section>
+      {view === DayView.Claims ? (
+        <DayClaims
+          category={category}
+          day={day}
+          claims={claims}
+          titles={new Map(stories.map((story) => [story.id, storyTitle(story)]))}
+          outlets={outlets}
+          status={status}
+        />
+      ) : (
+        <DayStories
+          category={category}
+          day={day}
+          stories={stories}
+          claims={claims}
+          outlets={outlets}
+        />
       )}
     </Page>
   );
@@ -135,22 +139,6 @@ function Page({ children }: { children: ReactNode }) {
       <main className={styles.main}>{children}</main>
     </>
   );
-}
-
-function Feed({ stories }: { stories: FeedStory[] }) {
-  return (
-    <ol className={styles.feed}>
-      {stories.map((story) => (
-        <li key={story.id}>
-          <StoryCard story={story} />
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-function totalArticles(stories: FeedStory[]): number {
-  return stories.reduce((total, story) => total + story.articleCount, 0);
 }
 
 function single(value: string | string[] | undefined): string | undefined {

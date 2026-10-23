@@ -56,7 +56,7 @@ The ingestion code is intentionally minimal and does not perform story classific
 
 ### Story Intelligence
 
-Each day's articles are grouped into stories by agglomerative clustering on a blend of embedding and TF-IDF similarity, tuned to split rather than merge articles that merely share a topic. A story keeps its identity as articles join it or editors move them.
+Each day's articles are grouped into stories by agglomerative clustering on a blend of embedding and TF-IDF similarity, tuned to split rather than merge articles that merely share a topic. Both are computed from each article's title, description and the first 300 characters of its content, which carry the specifics when a headline is generic. A story keeps its identity as articles join it or editors move them.
 
 Claude rates each story on two separate scales: how squarely it belongs in its category, and how important it is. It also flags articles that seem to report a different event from the rest of their story. The ratings rank each day's stories, and the top-ranked stories go on to analysis.
 
@@ -114,7 +114,7 @@ src/py/news/
     story_analysis.py
     story_clustering.py
     story_relevance.py
-  text/            The title and description text that vectors are built from
+  text/            The text vectors are built from: title, description and opening
     input_text.py
   tfidf/           TF-IDF vectors
     gnews_article_tfidf.py
@@ -183,7 +183,7 @@ Or run the jobs one at a time, in this order:
 | Script | Job |
 |---|---|
 | `ingest_gnews.py` | Fetch the day's top headlines from GNews |
-| `embed_gnews.py` | Embed titles and descriptions |
+| `embed_gnews.py` | Embed each article's title, description and opening |
 | `vectorize_gnews.py` | Fit the day's TF-IDF corpus and vectors |
 | `score_gnews.py` | Score the similarity of every pair of articles |
 | `cluster_gnews.py` | Group articles into stories, replaying editors' corrections |

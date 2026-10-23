@@ -23,8 +23,9 @@ from news.tfidf.gnews_article_tfidf import GNewsArticleTfidf
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Fit a TF-IDF corpus on one day's GNews article titles and "
-            "descriptions, and store each article's vector in PostgreSQL."
+            "Fit a TF-IDF corpus on one day's GNews articles (title, "
+            "description and the opening of their content), and store each "
+            "article's vector in PostgreSQL."
         )
     )
 

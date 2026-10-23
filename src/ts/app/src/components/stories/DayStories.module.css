@@ -1,0 +1,43 @@
+.stats {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.feed {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feed > li + li {
+  border-top: 1px solid var(--border);
+}
+
+.section {
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.sectionNote {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.outside {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 13px;
+}

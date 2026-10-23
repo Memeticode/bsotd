@@ -6,6 +6,8 @@ import {
   dayHref,
   formatDay,
   formatShortDay,
+  type Agreement,
+  type DayView,
 } from "@/lib/story-display";
 import styles from "./DayNav.module.css";
 
@@ -16,6 +18,9 @@ interface DayNavProps {
   next?: string;
   /** Every category with stories, and its latest day, to switch to. */
   categories: { category: string; latestDay: string }[];
+  /** Kept when switching days or categories. */
+  view: DayView;
+  status?: Agreement;
 }
 
 /** The day's heading, with links to the days around it and other categories. */
@@ -25,7 +30,14 @@ export function DayNav({
   previous,
   next,
   categories,
+  view,
+  status,
 }: DayNavProps) {
+  const href = (toCategory: string, toDay: string) =>
+    dayHref(toCategory, toDay, { view, status });
+  const previousHref = previous && href(category, previous);
+  const nextHref = next && href(category, next);
+
   return (
     <div className={styles.dayNav}>
       {categories.length > 1 && (
@@ -34,7 +46,7 @@ export function DayNav({
             {categories.map((option) => (
               <li key={option.category}>
                 <Link
-                  href={dayHref(option.category, option.latestDay)}
+                  href={href(option.category, option.latestDay)}
                   className={styles.category}
                   aria-current={option.category === category ? "true" : undefined}
                 >
@@ -52,10 +64,10 @@ export function DayNav({
           {formatDay(day)}
         </h1>
         <nav aria-label="Days" className={styles.days}>
-          <DayLink category={category} day={previous} label="Earlier day">
+          <DayLink href={previousHref} day={previous} label="Earlier day">
             ← {previous && formatShortDay(previous)}
           </DayLink>
-          <DayLink category={category} day={next} label="Later day">
+          <DayLink href={nextHref} day={next} label="Later day">
             {next && formatShortDay(next)} →
           </DayLink>
         </nav>
@@ -65,17 +77,17 @@ export function DayNav({
 }
 
 function DayLink({
-  category,
+  href,
   day,
   label,
   children,
 }: {
-  category: string;
+  href?: string;
   day?: string;
   label: string;
   children: ReactNode;
 }) {
-  if (day === undefined) {
+  if (href === undefined || day === undefined) {
     return (
       <span className={styles.disabled} aria-disabled="true">
         {children}
@@ -86,7 +98,7 @@ function DayLink({
 
   return (
     <Link
-      href={dayHref(category, day)}
+      href={href}
       className={styles.dayLink}
       aria-label={`${label}: ${formatDay(day)}`}
     >

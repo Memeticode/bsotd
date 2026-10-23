@@ -63,7 +63,9 @@ class GNewsStoryClustering:
         article_ids = [
             article.id
             for article in self._articles.get_articles(category, published_date)
-            if build_input_text(article.title, article.description)
+            if build_input_text(
+                article.title, article.description, article.content
+            )
         ]
 
         pairs = self._repository.get_pairs(category, published_date)

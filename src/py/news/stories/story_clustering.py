@@ -14,17 +14,20 @@ class ClusteringConfiguration:
 
     Pairs are compared by a weighted mix of embedding and TF-IDF cosine
     similarity, and groups merge while their average pairwise similarity
-    is above the threshold. The defaults were calibrated on six days of
-    science articles: same-story pairs scored 0.46 to 0.63 and pairs on
-    merely related topics 0.42 or less. Erring towards splits keeps
-    similar topics from passing as one story.
+    is above the threshold. The defaults were calibrated on seven days of
+    science articles: same-story pairs scored 0.49 to 0.92, and pairs from
+    different stories on related topics up to 0.45. Every threshold from
+    0.45 to 0.50 grouped them the same way, and the default sits in the
+    middle. Two reports of different SpaceX launches scored 0.56 to 0.58,
+    which no threshold separates from real stories; relevance rating flags
+    such articles for editors.
     """
 
     method: str = "agglomerative-average-linkage"
-    version: str = "1"
+    version: str = "2"
     embedding_weight: float = 0.6
     tfidf_weight: float = 0.4
-    similarity_threshold: float = 0.45
+    similarity_threshold: float = 0.475
 
     def to_json(self) -> dict[str, Any]:
         return asdict(self)

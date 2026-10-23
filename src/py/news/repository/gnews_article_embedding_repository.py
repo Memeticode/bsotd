@@ -11,7 +11,9 @@ class EmbeddingCandidate:
     gnews_article_id: int
     title: str | None
     description: str | None
-    existing_input_hashes: frozenset[str]
+    content: str | None
+    # The input hash of its latest embedding with the model, if any.
+    latest_input_hash: str | None
 
 
 @dataclass(frozen=True)
@@ -31,23 +33,24 @@ class GNewsArticleEmbeddingRepository:
             d.id,
             d.title,
             d.description,
-            COALESCE(
-                array_agg(e.input_hash)
-                    FILTER (WHERE e.input_hash IS NOT NULL),
-                '{}'
-            ) AS existing_input_hashes
+            d.content,
+            latest.input_hash
         FROM news.v_gnews_article_daily d
-        LEFT JOIN news.gnews_article_title_and_description_embedding e
-            ON e.gnews_article_id = d.id
-           AND e.model = %(model)s
+        LEFT JOIN LATERAL (
+            SELECT e.input_hash
+            FROM news.gnews_article_embedding e
+            WHERE e.gnews_article_id = d.id
+              AND e.model = %(model)s
+            ORDER BY e.created_at DESC, e.id DESC
+            LIMIT 1
+        ) latest ON true
         WHERE d.category = %(category)s
           AND d.published_date = %(published_date)s
-        GROUP BY d.id, d.title, d.description
         ORDER BY d.id;
     """
 
     INSERT_SQL = """
-        INSERT INTO news.gnews_article_title_and_description_embedding (
+        INSERT INTO news.gnews_article_embedding (
             gnews_article_id,
             model,
             input_hash,
@@ -59,8 +62,10 @@ class GNewsArticleEmbeddingRepository:
             %(input_hash)s,
             %(embedding)s::real[]::vector
         )
+        -- Text that returns to an earlier version reuses that version's
+        -- embedding, which becomes the latest again.
         ON CONFLICT (gnews_article_id, model, input_hash)
-        DO NOTHING;
+        DO UPDATE SET created_at = now();
     """
 
     def __init__(self, connection_string: str) -> None:
@@ -89,7 +94,8 @@ class GNewsArticleEmbeddingRepository:
                 gnews_article_id=row[0],
                 title=row[1],
                 description=row[2],
-                existing_input_hashes=frozenset(row[3]),
+                content=row[3],
+                latest_input_hash=row[4],
             )
             for row in rows
         ]

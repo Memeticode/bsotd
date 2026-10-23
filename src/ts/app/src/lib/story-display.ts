@@ -171,7 +171,42 @@ export function adjacentDays(
   };
 }
 
-/** The feed's address for a category and day. */
-export function dayHref(category: string, day: string): string {
-  return `/?${new URLSearchParams({ category, date: day })}`;
+/** The Stories page's two views of a day. */
+export const DayView = {
+  Stories: "stories",
+  Claims: "claims",
+} as const;
+
+export type DayView = (typeof DayView)[keyof typeof DayView];
+
+/**
+ * The Stories page's address for a category and day, in the stories view
+ * unless another is given, with its claims narrowed to one status if given.
+ */
+export function dayHref(
+  category: string,
+  day: string,
+  { view, status }: { view?: DayView; status?: Agreement } = {},
+): string {
+  const params = new URLSearchParams({ category, date: day });
+
+  if (view !== undefined && view !== DayView.Stories) {
+    params.set("view", view);
+  }
+
+  if (status !== undefined) {
+    params.set("status", status);
+  }
+
+  return `/?${params}`;
+}
+
+/** The view an address asks for, defaulting to stories. */
+export function parseDayView(value: unknown): DayView {
+  return value === DayView.Claims ? DayView.Claims : DayView.Stories;
+}
+
+/** The status an address asks for, if it names one. */
+export function parseAgreement(value: unknown): Agreement | undefined {
+  return Object.values(Agreement).find((agreement) => agreement === value);
 }

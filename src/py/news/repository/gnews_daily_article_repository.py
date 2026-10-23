@@ -10,6 +10,7 @@ class DailyArticle:
     id: int
     title: str | None
     description: str | None
+    content: str | None
 
 
 class GNewsDailyArticleRepository:
@@ -17,7 +18,7 @@ class GNewsDailyArticleRepository:
     and UTC publication date."""
 
     ARTICLES_SQL = """
-        SELECT id, title, description
+        SELECT id, title, description, content
         FROM news.v_gnews_article_daily
         WHERE category = %(category)s
           AND published_date = %(published_date)s

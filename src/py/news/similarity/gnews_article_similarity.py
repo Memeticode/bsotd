@@ -51,8 +51,8 @@ class GNewsArticleSimilarity:
         # Article ID -> hash of its current text, for every article
         # either job has vectorized.
         current = {
-            article_id: hash_input_text(build_input_text(title, description))
-            for article_id, (title, description) in sorted(status.articles.items())
+            article_id: hash_input_text(build_input_text(*text))
+            for article_id, text in sorted(status.articles.items())
         }
 
         missing_embeddings = [

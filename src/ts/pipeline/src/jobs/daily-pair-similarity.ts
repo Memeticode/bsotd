@@ -6,8 +6,8 @@ import {
   type PipelineJob,
   type RelationDataset,
 } from "../core/index.ts";
-import { vGnewsArticleTitleAndDescriptionEmbedded } from "./sentence-embeddings.ts";
-import { vGnewsArticleTitleAndDescriptionTfidf } from "./tfidf-vectors.ts";
+import { vGnewsArticleEmbedded } from "./sentence-embeddings.ts";
+import { vGnewsArticleTfidf } from "./tfidf-vectors.ts";
 
 // Most similar pairs first, within each day.
 const mostSimilarFirst = [
@@ -38,10 +38,7 @@ export const dailyPairSimilarity: PipelineJob = {
   name: "Daily pair similarity",
   summary:
     "Scores every pair of articles in a category and day by embedding and TF-IDF similarity.",
-  inputs: [
-    vGnewsArticleTitleAndDescriptionEmbedded,
-    vGnewsArticleTitleAndDescriptionTfidf,
-  ],
+  inputs: [vGnewsArticleEmbedded, vGnewsArticleTfidf],
   steps: [
     {
       kind: PipelineJobStepKind.Sql,

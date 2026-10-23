@@ -15,7 +15,11 @@ from news.text.input_text import build_input_text, hash_input_text
 MODEL = "embedding-test"
 DAY = date(2026, 10, 21)
 
-TEXTS = {1: ("One", "First"), 2: ("Two", "Second"), 3: ("Three", "Third")}
+TEXTS = {
+    1: ("One", "First", "Body one."),
+    2: ("Two", "Second", None),
+    3: ("Three", "Third", "Body three."),
+}
 
 HASHES = {
     article_id: hash_input_text(build_input_text(*text))

@@ -56,23 +56,25 @@ class GNewsArticleEmbedding:
             model=self._model,
         )
 
-        # An article needs a new vector when its current title and
-        # description haven't been embedded with this model yet.
+        # An article needs a new vector when its latest embedding with this
+        # model isn't of its current text.
         pending: list[tuple[EmbeddingCandidate, str, str]] = []
 
         for candidate in candidates:
-            text = build_input_text(candidate.title, candidate.description)
+            text = build_input_text(
+                candidate.title, candidate.description, candidate.content
+            )
 
             if not text:
                 logger.warning(
-                    "Article %d has no title or description; skipping",
+                    "Article %d has no text; skipping",
                     candidate.gnews_article_id,
                 )
                 continue
 
             input_hash = hash_input_text(text)
 
-            if input_hash not in candidate.existing_input_hashes:
+            if input_hash != candidate.latest_input_hash:
                 pending.append((candidate, text, input_hash))
 
         already_embedded = len(candidates) - len(pending)

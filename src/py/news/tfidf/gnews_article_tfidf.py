@@ -51,11 +51,13 @@ class GNewsArticleTfidf:
         documents: list[tuple[int, str, str]] = []
 
         for article in articles:
-            text = build_input_text(article.title, article.description)
+            text = build_input_text(
+                article.title, article.description, article.content
+            )
 
             if not text:
                 logger.warning(
-                    "Article %d has no title or description; skipping",
+                    "Article %d has no text; skipping",
                     article.id,
                 )
                 continue

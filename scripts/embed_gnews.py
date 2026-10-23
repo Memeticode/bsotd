@@ -21,8 +21,8 @@ from news.repository.gnews_article_embedding_repository import (
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Embed deduplicated GNews article titles and "
-            "descriptions into PostgreSQL."
+            "Embed one day's GNews articles (title, description and the "
+            "opening of their content) into PostgreSQL."
         )
     )
 

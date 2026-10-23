@@ -1,18 +1,35 @@
 import Link from "next/link";
+import { Fragment } from "react";
 
+import { Collapsible } from "@/components/ui/Collapsible";
 import { Tag } from "@/components/ui/Tag";
-import type { FeedStory } from "@/lib/stories";
+import type { FeedStory, StoryClaim } from "@/lib/stories";
 import {
+  AGREEMENT_LABELS,
+  Agreement,
   IMPORTANCE_LABELS,
   ReviewVerdict,
   count,
+  groupClaims,
   listOutlets,
   storyTitle,
 } from "@/lib/story-display";
+import { ClaimList } from "./ClaimList";
 import styles from "./StoryCard.module.css";
 
-/** A story in the day's feed: its title, summary, coverage and signals. */
-export function StoryCard({ story }: { story: FeedStory }) {
+interface StoryCardProps {
+  story: FeedStory;
+  /** The story's claims, if it has been analyzed. */
+  claims: StoryClaim[];
+  /** Outlet name by article ID. */
+  outlets: Map<string, string>;
+}
+
+/**
+ * A story in the day's feed: its title, summary, coverage and signals, and
+ * its claims by status, collapsed until opened.
+ */
+export function StoryCard({ story, claims, outlets }: StoryCardProps) {
   const analyzed =
     story.headline !== null && story.reviewVerdict !== ReviewVerdict.Rejected;
   const summary = analyzed ? story.summary : story.leadDescription;
@@ -40,8 +57,41 @@ export function StoryCard({ story }: { story: FeedStory }) {
           {count(story.sourceCount, "outlet")}: {listOutlets(story.sourceNames)}
         </p>
         <Signals story={story} />
+        {claims.length > 0 && (
+          <div className={styles.claims}>
+            <Collapsible summary={<ClaimCounts claims={claims} />}>
+              <ClaimList
+                claims={claims}
+                outlets={outlets}
+                compact
+                idPrefix={`story-${story.id}-claims`}
+              />
+            </Collapsible>
+          </div>
+        )}
       </div>
     </article>
+  );
+}
+
+/** e.g. "Claims: 2 disputed · 8 corroborated · 2 single source" */
+function ClaimCounts({ claims }: { claims: StoryClaim[] }) {
+  return (
+    <>
+      Claims:{" "}
+      {groupClaims(claims).map((group, index) => (
+        <Fragment key={group.agreement}>
+          {index > 0 && " · "}
+          <span
+            className={
+              group.agreement === Agreement.Disputed ? styles.disputed : undefined
+            }
+          >
+            {group.claims.length} {AGREEMENT_LABELS[group.agreement].toLowerCase()}
+          </span>
+        </Fragment>
+      ))}
+    </>
   );
 }
 
@@ -52,22 +102,6 @@ function Signals({ story }: { story: FeedStory }) {
     signals.push(
       <Tag key="importance" tone={story.importance >= 4 ? "accent" : undefined}>
         {IMPORTANCE_LABELS[story.importance - 1]} importance
-      </Tag>,
-    );
-  }
-
-  if (story.disputedCount > 0) {
-    signals.push(
-      <Tag key="disputed" tone="warning">
-        {count(story.disputedCount, "disputed claim")}
-      </Tag>,
-    );
-  }
-
-  if (story.corroboratedCount > 0) {
-    signals.push(
-      <Tag key="corroborated">
-        {count(story.corroboratedCount, "corroborated claim")}
       </Tag>,
     );
   }

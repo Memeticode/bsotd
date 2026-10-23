@@ -2,7 +2,7 @@
 
 A Next.js app with two sections:
 
-- **Stories**: each day's stories, most relevant first, and a page per story with its claims, how each outlet covers it, its articles and tools for editors.
+- **Stories**: each day's stories, most relevant first, each with its claims by status a click away. A Claims view lists every claim of the day by status (disputed, corroborated, single source), and can show one status at a time. Each story has a page with its claims, how each outlet covers it, its articles and tools for editors.
 - **Pipeline**: the jobs pipeline defined in `@bsotd/pipeline`, as a graph of its jobs and, for each job, its inputs, its steps and a live preview of the data each step produces.
 
 The pipeline pages are generated entirely from the pipeline definition, so adding or changing a job there needs no changes here.
@@ -32,7 +32,7 @@ Reading uses read-only database sessions. Only these corrections use a second, w
 
 ## Layout
 
-- `src/app/`: routes. `/` shows a day's stories (`?category=…&date=…`), `/stories/[storyId]` shows one story, `/pipeline` shows the graph with an overview, and `/pipeline/[jobId]` shows one job.
+- `src/app/`: routes. `/` shows a day's stories (`?category=…&date=…`), or its claims with `&view=claims`, narrowed by `&status=…`. `/stories/[storyId]` shows one story, `/pipeline` shows the graph with an overview, and `/pipeline/[jobId]` shows one job.
 - `src/components/stories/`: the feed, story pages and editors' forms.
 - `src/components/dag/`: a generic DAG layout and drawing that knows nothing about pipelines. Edges that skip rows run down lanes beside the graph.
 - `src/components/pipeline/`: pipeline views built on the DAG and the pipeline model.

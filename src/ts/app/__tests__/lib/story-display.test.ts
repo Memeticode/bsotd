@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import {
   Agreement,
+  DayView,
   ReviewVerdict,
   adjacentDays,
   categoryLabel,
@@ -12,6 +13,8 @@ import {
   formatMoment,
   groupClaims,
   listOutlets,
+  parseAgreement,
+  parseDayView,
   scoreLabel,
   storyTitle,
 } from "../../src/lib/story-display.ts";
@@ -96,4 +99,32 @@ test("the days around a day are found within its category", () => {
 test("feed addresses carry the category and day", () => {
   assert.equal(dayHref("science", "2026-10-21"), "/?category=science&date=2026-10-21");
   assert.equal(categoryLabel("science"), "Science");
+});
+
+test("the claims view's address carries its view and status", () => {
+  assert.equal(
+    dayHref("science", "2026-10-21", { view: DayView.Claims }),
+    "/?category=science&date=2026-10-21&view=claims",
+  );
+  assert.equal(
+    dayHref("science", "2026-10-21", {
+      view: DayView.Claims,
+      status: Agreement.SingleSource,
+    }),
+    "/?category=science&date=2026-10-21&view=claims&status=single+source",
+  );
+  assert.equal(
+    dayHref("science", "2026-10-21", { view: DayView.Stories }),
+    "/?category=science&date=2026-10-21",
+  );
+});
+
+test("views and statuses are read from the address", () => {
+  assert.equal(parseDayView("claims"), DayView.Claims);
+  assert.equal(parseDayView("anything else"), DayView.Stories);
+  assert.equal(parseDayView(undefined), DayView.Stories);
+
+  assert.equal(parseAgreement("single source"), Agreement.SingleSource);
+  assert.equal(parseAgreement("disputed"), Agreement.Disputed);
+  assert.equal(parseAgreement("wrong"), undefined);
 });

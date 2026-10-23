@@ -36,9 +36,6 @@ export interface FeedStory {
   summary: string | null;
   takeaways: string[];
   reviewVerdict: ReviewVerdict | null;
-  claimCount: number;
-  corroboratedCount: number;
-  disputedCount: number;
 }
 
 export interface StoryDetail {
@@ -114,6 +111,11 @@ export interface StoryClaim {
   notMentionedArticleIds: string[];
 }
 
+/** A claim among a day's, with the story it belongs to. */
+export interface DayClaim extends StoryClaim {
+  storyId: string;
+}
+
 export interface StoryArticle {
   id: string;
   title: string | null;
@@ -158,16 +160,7 @@ export function fetchStoryDays(): Promise<StoryDay[]> {
 /** A day's stories in rank order, with their analyses where there are any. */
 export function fetchFeed(category: string, publishedDate: string): Promise<FeedStory[]> {
   return query<FeedStory>(
-    `WITH claim_count AS (
-       SELECT
-         story_id,
-         count(*)::int AS claims,
-         count(*) FILTER (WHERE agreement = 'corroborated')::int AS corroborated,
-         count(*) FILTER (WHERE agreement = 'disputed')::int AS disputed
-       FROM news.v_gnews_story_claim
-       GROUP BY story_id
-     )
-     SELECT
+    `SELECT
        s.id,
        s.relevance_rank AS rank,
        s.lead_title AS "leadTitle",
@@ -183,13 +176,9 @@ export function fetchFeed(category: string, publishedDate: string): Promise<Feed
        a.headline,
        a.summary,
        COALESCE(a.takeaways, '{}') AS takeaways,
-       a.review_verdict AS "reviewVerdict",
-       COALESCE(c.claims, 0) AS "claimCount",
-       COALESCE(c.corroborated, 0) AS "corroboratedCount",
-       COALESCE(c.disputed, 0) AS "disputedCount"
+       a.review_verdict AS "reviewVerdict"
      FROM news.v_gnews_story_ranked s
      LEFT JOIN news.v_gnews_story_analysis a ON a.story_id = s.id
-     LEFT JOIN claim_count c ON c.story_id = s.id
      WHERE s.category = $1 AND s.published_date = $2
      ORDER BY s.relevance_rank`,
     [category, publishedDate],
@@ -347,35 +336,80 @@ export const fetchStoryAnalysis = cache(async function fetchStoryAnalysis(
   };
 });
 
-export async function fetchStoryClaims(storyId: string): Promise<StoryClaim[]> {
-  const rows = await query<
-    Omit<StoryClaim, "sources"> & {
-      sources: { article_id: number; stance: Stance; evidence: string }[];
-    }
-  >(
-    `SELECT
-       claim_number AS number,
-       statement,
-       kind,
-       agreement,
-       supporting_reports AS "supportingReports",
-       contradicting_reports AS "contradictingReports",
-       sources,
-       not_mentioned_article_ids AS "notMentionedArticleIds"
-     FROM news.v_gnews_story_claim
-     WHERE story_id = $1
-     ORDER BY claim_number`,
-    [storyId],
-  );
+// A claim as v_gnews_story_claim has it, with its sources' article IDs as
+// numbers, as the analysis JSON stores them.
+type ClaimRow<Claim extends StoryClaim> = Omit<Claim, "sources"> & {
+  sources: { article_id: number; stance: Stance; evidence: string }[];
+};
 
-  return rows.map((row) => ({
+const CLAIM_COLUMNS = `
+  c.claim_number AS number,
+  c.statement,
+  c.kind,
+  c.agreement,
+  c.supporting_reports AS "supportingReports",
+  c.contradicting_reports AS "contradictingReports",
+  c.sources,
+  c.not_mentioned_article_ids AS "notMentionedArticleIds"`;
+
+function toClaim<Claim extends StoryClaim>(row: ClaimRow<Claim>): Claim {
+  return {
     ...row,
     sources: row.sources.map((source) => ({
       articleId: String(source.article_id),
       stance: source.stance,
       evidence: source.evidence,
     })),
-  }));
+  } as Claim;
+}
+
+export async function fetchStoryClaims(storyId: string): Promise<StoryClaim[]> {
+  const rows = await query<ClaimRow<StoryClaim>>(
+    `SELECT ${CLAIM_COLUMNS}
+     FROM news.v_gnews_story_claim c
+     WHERE c.story_id = $1
+     ORDER BY c.claim_number`,
+    [storyId],
+  );
+
+  return rows.map(toClaim);
+}
+
+/**
+ * The claims of a day's stories, story by story in rank order. Analyses
+ * that an editor rejected are left out, as they are on story pages.
+ */
+export async function fetchDayClaims(
+  category: string,
+  publishedDate: string,
+): Promise<DayClaim[]> {
+  const rows = await query<ClaimRow<DayClaim>>(
+    `SELECT c.story_id AS "storyId", ${CLAIM_COLUMNS}
+     FROM news.v_gnews_story_claim c
+     JOIN news.v_gnews_story_ranked s ON s.id = c.story_id
+     WHERE s.category = $1
+       AND s.published_date = $2
+       AND c.review_verdict IS DISTINCT FROM 'rejected'
+     ORDER BY s.relevance_rank, c.claim_number`,
+    [category, publishedDate],
+  );
+
+  return rows.map(toClaim);
+}
+
+/** The outlet behind each of a day's articles, by article ID. */
+export async function fetchDayOutlets(
+  category: string,
+  publishedDate: string,
+): Promise<Map<string, string>> {
+  const rows = await query<{ id: string; sourceName: string | null }>(
+    `SELECT id, source_name AS "sourceName"
+     FROM news.v_gnews_article_daily
+     WHERE category = $1 AND published_date = $2`,
+    [category, publishedDate],
+  );
+
+  return new Map(rows.map((row) => [row.id, row.sourceName ?? "Unknown outlet"]));
 }
 
 /** A story's articles, earliest first. */

@@ -82,3 +82,33 @@
 .outlet {
   font-weight: 600;
 }
+
+.story {
+  margin: 0 0 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Compact lists, as on story cards: no evidence, tighter spacing. */
+.group[data-compact] + .group[data-compact] {
+  margin-top: 12px;
+}
+
+.group[data-compact] .heading {
+  margin-bottom: 6px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.group[data-compact] .claims {
+  gap: 6px;
+}
+
+.group[data-compact] .claim {
+  padding: 8px 10px;
+}
+
+.group[data-compact] .sources {
+  margin-bottom: 0;
+}

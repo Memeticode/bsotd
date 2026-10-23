@@ -34,8 +34,8 @@ class GNewsArticleTfidfRepository:
                     FILTER (WHERE t.id IS NOT NULL),
                 '{}'
             ) AS input_hashes
-        FROM news.gnews_article_title_and_description_tfidf_corpus c
-        LEFT JOIN news.gnews_article_title_and_description_tfidf t
+        FROM news.gnews_article_tfidf_corpus c
+        LEFT JOIN news.gnews_article_tfidf t
             ON t.corpus_id = c.id
         WHERE c.category = %(category)s
           AND c.published_date = %(published_date)s
@@ -45,13 +45,13 @@ class GNewsArticleTfidfRepository:
     # Cascades to the corpus's vectors and the similarities computed
     # from them.
     DELETE_CORPUS_SQL = """
-        DELETE FROM news.gnews_article_title_and_description_tfidf_corpus
+        DELETE FROM news.gnews_article_tfidf_corpus
         WHERE category = %(category)s
           AND published_date = %(published_date)s;
     """
 
     INSERT_CORPUS_SQL = """
-        INSERT INTO news.gnews_article_title_and_description_tfidf_corpus (
+        INSERT INTO news.gnews_article_tfidf_corpus (
             category,
             published_date,
             configuration,
@@ -71,7 +71,7 @@ class GNewsArticleTfidfRepository:
     """
 
     INSERT_VECTOR_SQL = """
-        INSERT INTO news.gnews_article_title_and_description_tfidf (
+        INSERT INTO news.gnews_article_tfidf (
             corpus_id,
             gnews_article_id,
             input_hash,

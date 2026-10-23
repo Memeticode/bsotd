@@ -229,9 +229,10 @@ WHERE daily_rn = 1;
 
 
 -- pipeline step
--- python script generates embeddings based on title and description
+-- python script embeds each article's title, description and the
+-- opening of its content
 
-CREATE TABLE news.gnews_article_title_and_description_embedding (
+CREATE TABLE news.gnews_article_embedding (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 
     gnews_article_id bigint NOT NULL
@@ -251,9 +252,9 @@ CREATE TABLE news.gnews_article_title_and_description_embedding (
 
 
 -- pipeline step
--- embeddings are linked back to daily articles
+-- each daily article's latest embedding per model, with its fields
 
-CREATE OR REPLACE VIEW news.v_gnews_article_title_and_description_embedded AS
+CREATE OR REPLACE VIEW news.v_gnews_article_embedded AS
 SELECT
     a.*,
     e.model AS embedding_model,
@@ -263,14 +264,20 @@ SELECT
 
 FROM news.v_gnews_article_daily a
 
-JOIN news.gnews_article_title_and_description_embedding e
-    ON e.gnews_article_id = a.id;
+-- Embeddings of text an article has since changed stay in the table
+-- but not here.
+CROSS JOIN LATERAL (
+    SELECT DISTINCT ON (model) *
+    FROM news.gnews_article_embedding
+    WHERE gnews_article_id = a.id
+    ORDER BY model, created_at DESC, id DESC
+) e;
 
 
 -- pipeline step
 -- tf-idf corpus per category and date
 
-CREATE TABLE news.gnews_article_title_and_description_tfidf_corpus (
+CREATE TABLE news.gnews_article_tfidf_corpus (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 
     category text NOT NULL,
@@ -291,11 +298,11 @@ CREATE TABLE news.gnews_article_title_and_description_tfidf_corpus (
 
 -- pipeline step
 -- tf-idf values per article
-CREATE TABLE news.gnews_article_title_and_description_tfidf (
+CREATE TABLE news.gnews_article_tfidf (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 
     corpus_id bigint NOT NULL
-        REFERENCES news.gnews_article_title_and_description_tfidf_corpus(id)
+        REFERENCES news.gnews_article_tfidf_corpus(id)
         ON DELETE CASCADE,
 
     gnews_article_id bigint NOT NULL
@@ -314,8 +321,7 @@ CREATE TABLE news.gnews_article_title_and_description_tfidf (
 
 -- pipeline step
 -- tf-idf values are linked back to daily articles
-CREATE OR REPLACE VIEW
-news.v_gnews_article_title_and_description_tfidf AS
+CREATE OR REPLACE VIEW news.v_gnews_article_tfidf AS
 
 SELECT
     a.*,
@@ -330,10 +336,10 @@ SELECT
 
 FROM news.v_gnews_article_daily a
 
-JOIN news.gnews_article_title_and_description_tfidf t
+JOIN news.gnews_article_tfidf t
     ON t.gnews_article_id = a.id
 
-JOIN news.gnews_article_title_and_description_tfidf_corpus c
+JOIN news.gnews_article_tfidf_corpus c
     ON c.id = t.corpus_id
    AND c.category = a.category
    AND c.published_date = a.published_date;
@@ -358,7 +364,7 @@ CREATE TABLE news.gnews_article_daily_similarity (
     embedding_model text NOT NULL,
 
     tfidf_corpus_id bigint NOT NULL
-        REFERENCES news.gnews_article_title_and_description_tfidf_corpus(id)
+        REFERENCES news.gnews_article_tfidf_corpus(id)
         ON DELETE CASCADE,
 
     embedding_cosine_similarity double precision NOT NULL,

@@ -26,7 +26,7 @@ PAIRS = [
 
 class FakeArticles:
     def get_articles(self, category, published_date):
-        return [DailyArticle(i, f"Title {i}", None) for i in (1, 2, 3)]
+        return [DailyArticle(i, f"Title {i}", None, None) for i in (1, 2, 3)]
 
 
 class FakeRepository:

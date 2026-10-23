@@ -6,6 +6,8 @@ from typing import Any
 import sklearn
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+from news.text.input_text import INPUT_DESCRIPTION
+
 
 @dataclass(frozen=True)
 class TfidfConfiguration:
@@ -35,7 +37,7 @@ class TfidfConfiguration:
         """The settings as stored with a corpus, for reproducibility."""
         settings: dict[str, Any] = asdict(self)
         settings["ngram_range"] = list(self.ngram_range)
-        settings["input"] = "title and description"
+        settings["input"] = INPUT_DESCRIPTION
         settings["scikit_learn"] = sklearn.__version__
         return settings
 

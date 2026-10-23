@@ -60,3 +60,11 @@
   gap: 6px;
   margin: 2px 0 0;
 }
+
+.claims {
+  margin-top: 2px;
+}
+
+.disputed {
+  color: var(--warning);
+}

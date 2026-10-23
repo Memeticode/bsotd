@@ -2,6 +2,7 @@
 import re
 import unittest
 
+from news.text.input_text import INPUT_DESCRIPTION
 from news.tfidf.tfidf_corpus import TfidfConfiguration, fit_corpus, to_sparsevec
 
 
@@ -57,7 +58,7 @@ class TfidfConfigurationTest(unittest.TestCase):
         settings = TfidfConfiguration().to_json()
 
         self.assertEqual(settings["ngram_range"], [1, 2])
-        self.assertEqual(settings["input"], "title and description")
+        self.assertEqual(settings["input"], INPUT_DESCRIPTION)
         self.assertIn("scikit_learn", settings)
 
 
