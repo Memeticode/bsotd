@@ -1,39 +1,49 @@
-import type { Pipeline, PipelineStep, StepEdge } from "./models/index.ts";
+import type {
+  OutputDataset,
+  Pipeline,
+  PipelineJob,
+  PipelineJobEdge,
+} from "./models/index.ts";
 
-export function findStep(
+export function findJob(
   pipeline: Pipeline,
   id: string,
-): PipelineStep | undefined {
-  return pipeline.steps.find((step) => step.id === id);
+): PipelineJob | undefined {
+  return pipeline.jobs.find((job) => job.id === id);
 }
 
-/** The step that outputs the named dataset, if any step does. */
+/** What a job's last step produces: the data later jobs can read. */
+export function jobOutputs(job: PipelineJob): OutputDataset[] {
+  return job.steps.at(-1)?.produces ?? [];
+}
+
+/** The job that outputs the named dataset, if any does. */
 export function datasetProducer(
   pipeline: Pipeline,
   datasetName: string,
-): PipelineStep | undefined {
-  return pipeline.steps.find((step) =>
-    step.outputs.some((output) => output.name === datasetName),
+): PipelineJob | undefined {
+  return pipeline.jobs.find((job) =>
+    jobOutputs(job).some((output) => output.name === datasetName),
   );
 }
 
-/** One edge per pair of connected steps, in step order. */
-export function stepEdges(pipeline: Pipeline): StepEdge[] {
-  const edges = new Map<string, StepEdge>();
+/** One edge per pair of connected jobs, in job order. */
+export function jobEdges(pipeline: Pipeline): PipelineJobEdge[] {
+  const edges = new Map<string, PipelineJobEdge>();
 
-  for (const step of pipeline.steps) {
-    for (const input of step.inputs) {
+  for (const job of pipeline.jobs) {
+    for (const input of job.inputs) {
       const producer = datasetProducer(pipeline, input.name);
 
-      // External inputs have no producing step.
+      // External inputs have no producing job.
       if (producer === undefined) {
         continue;
       }
 
-      const key = `${producer.id}->${step.id}`;
+      const key = `${producer.id}->${job.id}`;
       const edge = edges.get(key) ?? {
         from: producer.id,
-        to: step.id,
+        to: job.id,
         datasets: [],
       };
 
@@ -45,30 +55,24 @@ export function stepEdges(pipeline: Pipeline): StepEdge[] {
   return [...edges.values()];
 }
 
-/** Steps whose outputs the given step reads. */
-export function upstreamSteps(
-  pipeline: Pipeline,
-  stepId: string,
-): PipelineStep[] {
+/** Jobs whose outputs the given job reads. */
+export function upstreamJobs(pipeline: Pipeline, jobId: string): PipelineJob[] {
   const ids = new Set(
-    stepEdges(pipeline)
-      .filter((edge) => edge.to === stepId)
+    jobEdges(pipeline)
+      .filter((edge) => edge.to === jobId)
       .map((edge) => edge.from),
   );
 
-  return pipeline.steps.filter((step) => ids.has(step.id));
+  return pipeline.jobs.filter((job) => ids.has(job.id));
 }
 
-/** Steps that read the given step's outputs. */
-export function downstreamSteps(
-  pipeline: Pipeline,
-  stepId: string,
-): PipelineStep[] {
+/** Jobs that read the given job's outputs. */
+export function downstreamJobs(pipeline: Pipeline, jobId: string): PipelineJob[] {
   const ids = new Set(
-    stepEdges(pipeline)
-      .filter((edge) => edge.from === stepId)
+    jobEdges(pipeline)
+      .filter((edge) => edge.from === jobId)
       .map((edge) => edge.to),
   );
 
-  return pipeline.steps.filter((step) => ids.has(step.id));
+  return pipeline.jobs.filter((job) => ids.has(job.id));
 }

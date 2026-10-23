@@ -15,6 +15,12 @@ export function Dag({ layout, activeId, renderNode }: DagProps) {
   const isActive = (edge: { from: string; to: string }) =>
     edge.from === activeId || edge.to === activeId;
 
+  // Highlighted edges go last, on top of any lane they share.
+  const edges = [
+    ...layout.edges.filter((edge) => !isActive(edge)),
+    ...layout.edges.filter(isActive),
+  ];
+
   return (
     <div
       className={styles.canvas}
@@ -30,7 +36,7 @@ export function Dag({ layout, activeId, renderNode }: DagProps) {
           <ArrowMarker id="dag-arrow" className={styles.arrow} />
           <ArrowMarker id="dag-arrow-active" className={styles.activeArrow} />
         </defs>
-        {layout.edges.map((edge) => (
+        {edges.map((edge) => (
           <path
             key={`${edge.from}->${edge.to}`}
             d={edge.path}

@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
-  ColumnType,
   DatasetKind,
   SortDirection,
   type RelationDataset,
@@ -12,41 +11,53 @@ import {
   countQuery,
   previewQuery,
   quoteIdentifier,
+  splitRelation,
 } from "../../src/lib/preview-query.ts";
 
-const dataset: RelationDataset = {
+const view: RelationDataset = {
   kind: DatasetKind.View,
   name: "news.v_gnews_article",
   description: "",
-  columns: [
-    { name: "id" },
-    { name: "published_at", type: ColumnType.Timestamp },
-  ],
-  sortBy: [
-    { column: "published_at", direction: SortDirection.Descending },
-    { column: "id", direction: SortDirection.Ascending },
-  ],
 };
 
-test("previews select the declared columns in the declared order", () => {
+test("previews order by the first column, newest first, by default", () => {
   assert.equal(
-    previewQuery(dataset),
-    'SELECT "id", "published_at" FROM "news"."v_gnews_article" ORDER BY "published_at" DESC, "id" ASC LIMIT $1',
+    previewQuery(view),
+    'SELECT * FROM "news"."v_gnews_article" ORDER BY 1 DESC LIMIT $1 OFFSET $2',
   );
 });
 
-test("previews without a sort order have no ORDER BY", () => {
+test("previews follow a dataset's sortBy when it has one", () => {
+  const sorted: RelationDataset = {
+    ...view,
+    sortBy: [
+      { column: "published_at", direction: SortDirection.Descending },
+      { column: "id", direction: SortDirection.Ascending },
+    ],
+  };
+
   assert.equal(
-    previewQuery({ ...dataset, sortBy: [] }),
-    'SELECT "id", "published_at" FROM "news"."v_gnews_article" LIMIT $1',
+    previewQuery(sorted),
+    'SELECT * FROM "news"."v_gnews_article" ORDER BY "published_at" DESC, "id" ASC LIMIT $1 OFFSET $2',
   );
 });
 
 test("counts cover the whole relation", () => {
   assert.equal(
-    countQuery(dataset),
+    countQuery(view),
     'SELECT count(*)::int AS total FROM "news"."v_gnews_article"',
   );
+});
+
+test("relation names split into schema and relation", () => {
+  assert.deepEqual(splitRelation("news.v_gnews_article"), {
+    schema: "news",
+    relation: "v_gnews_article",
+  });
+  assert.deepEqual(splitRelation("articles"), {
+    schema: "public",
+    relation: "articles",
+  });
 });
 
 test("quotes inside identifiers are escaped", () => {

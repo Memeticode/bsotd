@@ -1,4 +1,4 @@
-import { DatasetKind, Status, StepKind } from "@bsotd/pipeline/core";
+import { DatasetKind, PipelineJobStepKind, Status } from "@bsotd/pipeline/core";
 
 export const STATUS_LABELS: Record<Status, string> = {
   [Status.Implemented]: "Implemented",
@@ -6,12 +6,11 @@ export const STATUS_LABELS: Record<Status, string> = {
   [Status.Todo]: "To do",
 };
 
-export const STEP_KIND_LABELS: Record<StepKind, string> = {
-  [StepKind.Ingestion]: "Ingestion",
-  [StepKind.Sql]: "SQL",
-  [StepKind.Model]: "Model",
-  [StepKind.Llm]: "LLM",
-  [StepKind.Presentation]: "Presentation",
+export const JOB_STEP_KIND_LABELS: Record<PipelineJobStepKind, string> = {
+  [PipelineJobStepKind.Ingestion]: "Ingestion",
+  [PipelineJobStepKind.Model]: "Model",
+  [PipelineJobStepKind.Llm]: "LLM",
+  [PipelineJobStepKind.Sql]: "SQL",
 };
 
 export const DATASET_KIND_LABELS: Record<DatasetKind, string> = {

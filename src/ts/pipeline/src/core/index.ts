@@ -1,11 +1,14 @@
 export * from "./models/index.ts";
 
 export { definePipeline } from "./define.ts";
+export { isEditorial } from "./editorial.ts";
 export {
   datasetProducer,
-  downstreamSteps,
-  findStep,
-  stepEdges,
-  upstreamSteps,
+  downstreamJobs,
+  findJob,
+  jobEdges,
+  jobOutputs,
+  upstreamJobs,
 } from "./graph.ts";
-export { stepStatus } from "./step-status.ts";
+export { jobKind } from "./job-kind.ts";
+export { jobStatus } from "./job-status.ts";

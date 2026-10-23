@@ -1,0 +1,33 @@
+.framing {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+}
+
+.note {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) minmax(0, 1fr);
+  gap: 4px 16px;
+}
+
+.outlet {
+  font-weight: 600;
+}
+
+.text {
+  margin: 0;
+}
+
+.copies {
+  margin: 16px 0 0;
+  padding-left: 18px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+@media (max-width: 600px) {
+  .note {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1,4 +1,3 @@
-import type { Column } from "./column.ts";
 import type { SortKey } from "./sort-key.ts";
 
 export const DatasetKind = {
@@ -10,15 +9,22 @@ export const DatasetKind = {
 
 export type DatasetKind = (typeof DatasetKind)[keyof typeof DatasetKind];
 
-/** A table or view in PostgreSQL. */
+/**
+ * A table or view in PostgreSQL. Its columns and their types are read from
+ * the database, not declared here.
+ */
 export interface RelationDataset {
   kind: typeof DatasetKind.Table | typeof DatasetKind.View;
   /** Schema-qualified relation name, e.g. "news.gnews_article". */
   name: string;
   description: string;
-  /** Columns worth showing, in display order. */
-  columns: Column[];
-  sortBy: SortKey[];
+  /** How to order its rows when shown. Defaults to its first column, descending. */
+  sortBy?: SortKey[];
+  /**
+   * Written by editors through the app rather than by a job, such as
+   * corrections that jobs apply. Jobs read it without a job producing it.
+   */
+  editorial?: boolean;
 }
 
 /** An output whose storage hasn't been designed yet. */

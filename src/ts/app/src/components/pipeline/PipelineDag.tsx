@@ -1,32 +1,33 @@
 import {
+  jobEdges,
+  jobKind,
+  jobStatus,
   Status,
-  stepEdges,
-  stepStatus,
   type Pipeline,
 } from "@bsotd/pipeline/core";
 
 import { layoutDag } from "@/components/dag/dag-layout";
-import { PipelineDagClient, type DagStep } from "./PipelineDagClient";
+import { PipelineDagClient, type DagJob } from "./PipelineDagClient";
 import { StatusBadge } from "./StatusBadge";
 import styles from "./PipelineDag.module.css";
 
-/** The pipeline's steps as a graph, with a legend for their statuses. */
+/** The pipeline's jobs as a graph, with a legend for their statuses. */
 export function PipelineDag({ pipeline }: { pipeline: Pipeline }) {
-  const steps: DagStep[] = pipeline.steps.map((step) => ({
-    id: step.id,
-    name: step.name,
-    kind: step.kind,
-    status: stepStatus(step),
+  const jobs: DagJob[] = pipeline.jobs.map((job) => ({
+    id: job.id,
+    name: job.name,
+    kind: jobKind(job),
+    status: jobStatus(job),
   }));
 
   const layout = layoutDag(
-    steps.map((step) => step.id),
-    stepEdges(pipeline),
+    jobs.map((job) => job.id),
+    jobEdges(pipeline),
   );
 
   return (
     <div className={styles.graph}>
-      <PipelineDagClient steps={steps} layout={layout} />
+      <PipelineDagClient jobs={jobs} layout={layout} />
       <ul className={styles.legend} aria-label="Statuses">
         {Object.values(Status).map((status) => (
           <li key={status}>

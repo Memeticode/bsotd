@@ -1,9 +1,9 @@
-import type { PipelineStep } from "./pipeline-step.ts";
+import type { PipelineJob } from "./pipeline-job.ts";
 
 export interface Pipeline {
   name: string;
   description: string;
-  /** Steps in dependency order: each step after the steps it reads from. */
-  steps: PipelineStep[];
+  /** In dependency order: each job after the jobs it reads from. */
+  jobs: PipelineJob[];
   principles?: string[];
 }

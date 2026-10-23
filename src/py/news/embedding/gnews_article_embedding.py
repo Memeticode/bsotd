@@ -1,5 +1,4 @@
 
-import hashlib
 import logging
 from dataclasses import dataclass
 from datetime import date
@@ -10,6 +9,7 @@ from news.repository.gnews_article_embedding_repository import (
     EmbeddingCandidate,
     GNewsArticleEmbeddingRepository,
 )
+from news.text.input_text import build_input_text, hash_input_text
 
 
 logger = logging.getLogger(__name__)
@@ -18,23 +18,11 @@ logger = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class EmbeddingResult:
     category: str
-    date: date
+    published_date: date
     model: str
     articles_found: int
     already_embedded: int
     embeddings_saved: int
-
-
-def build_input_text(candidate: EmbeddingCandidate) -> str:
-    parts = [
-        (candidate.title or "").strip(),
-        (candidate.description or "").strip(),
-    ]
-    return "\n".join(part for part in parts if part)
-
-
-def hash_input_text(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 class GNewsArticleEmbedding:
@@ -56,9 +44,7 @@ class GNewsArticleEmbedding:
     def embed(
         self,
         category: str,
-        target_date: date,
-        language: str = "en",
-        country: str = "us",
+        published_date: date,
         dry_run: bool = True,
     ) -> EmbeddingResult:
         if not dry_run and self._embedder is None:
@@ -66,10 +52,8 @@ class GNewsArticleEmbedding:
 
         candidates = self._repository.get_candidates(
             category=category,
-            collection_date=target_date,
+            published_date=published_date,
             model=self._model,
-            language=language,
-            country=country,
         )
 
         # An article needs a new vector when its current title and
@@ -77,7 +61,7 @@ class GNewsArticleEmbedding:
         pending: list[tuple[EmbeddingCandidate, str, str]] = []
 
         for candidate in candidates:
-            text = build_input_text(candidate)
+            text = build_input_text(candidate.title, candidate.description)
 
             if not text:
                 logger.warning(
@@ -129,7 +113,7 @@ class GNewsArticleEmbedding:
 
         return EmbeddingResult(
             category=category,
-            date=target_date,
+            published_date=published_date,
             model=self._model,
             articles_found=len(candidates),
             already_embedded=already_embedded,

@@ -36,11 +36,8 @@ def parse_args() -> argparse.Namespace:
         "--date",
         type=date.fromisoformat,
         default=datetime.now(timezone.utc).date(),
-        help="UTC collection date: YYYY-MM-DD",
+        help="UTC publication date: YYYY-MM-DD",
     )
-
-    parser.add_argument("--language", default="en")
-    parser.add_argument("--country", default="us")
 
     parser.add_argument(
         "--model",
@@ -101,16 +98,14 @@ def main() -> None:
 
     result = embedding.embed(
         category=args.category,
-        target_date=args.date,
-        language=args.language,
-        country=args.country,
+        published_date=args.date,
         dry_run=dry_run,
     )
 
     print()
     print("EMBEDDING SUMMARY")
     print(f"Category:           {result.category}")
-    print(f"Date:               {result.date}")
+    print(f"Published date:     {result.published_date}")
     print(f"Model:              {result.model}")
     print(f"Articles found:     {result.articles_found}")
     print(f"Already embedded:   {result.already_embedded}")

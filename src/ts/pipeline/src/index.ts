@@ -1,30 +1,24 @@
 import { definePipeline } from "./core/index.ts";
-import { articleDeduplication } from "./steps/article-deduplication.ts";
-import { articleExtraction } from "./steps/article-extraction.ts";
-import { dailyPairSimilarity } from "./steps/daily-pair-similarity.ts";
-import { gnewsIngestion } from "./steps/gnews-ingestion.ts";
-import { relevanceClassification } from "./steps/relevance-classification.ts";
-import { sentenceEmbeddings } from "./steps/sentence-embeddings.ts";
-import { storyAnalysis } from "./steps/story-analysis.ts";
-import { storyClustering } from "./steps/story-clustering.ts";
-import { storyPresentation } from "./steps/story-presentation.ts";
-import { tfidfVectors } from "./steps/tfidf-vectors.ts";
+import { dailyPairSimilarity } from "./jobs/daily-pair-similarity.ts";
+import { gnewsIngestion } from "./jobs/gnews-ingestion.ts";
+import { relevanceClassification } from "./jobs/relevance-classification.ts";
+import { sentenceEmbeddings } from "./jobs/sentence-embeddings.ts";
+import { storyAnalysis } from "./jobs/story-analysis.ts";
+import { storyClustering } from "./jobs/story-clustering.ts";
+import { tfidfVectors } from "./jobs/tfidf-vectors.ts";
 
-export const newsPipeline = definePipeline({
-  name: "News intelligence pipeline",
+export const jobsPipeline = definePipeline({
+  name: "Jobs pipeline",
   description:
-    "Turns GNews articles into stories: collect and preserve source articles, remove exact duplicates, measure semantic and lexical similarity, group related articles into stories, rank stories by relevance, and eventually extract and compare claims across sources.",
-  steps: [
+    "Turns GNews articles into stories: collect and preserve source articles, remove exact duplicates, measure semantic and lexical similarity, group related articles into stories, rank stories by relevance, and extract and compare claims across sources, with editors able to correct each stage.",
+  jobs: [
     gnewsIngestion,
-    articleExtraction,
-    articleDeduplication,
     sentenceEmbeddings,
     tfidfVectors,
     dailyPairSimilarity,
     storyClustering,
     relevanceClassification,
     storyAnalysis,
-    storyPresentation,
   ],
   principles: [
     "PostgreSQL is the central data store.",

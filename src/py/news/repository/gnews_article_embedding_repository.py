@@ -23,8 +23,9 @@ class ArticleEmbedding:
 
 
 class GNewsArticleEmbeddingRepository:
-    # Embeds deduplicated articles only: one vector per
-    # syndicated group, stored against its canonical row.
+    # Embeds the daily processing set only: one vector per
+    # syndicated group, stored against its canonical row, and one
+    # per article however many collections it appears in.
     CANDIDATES_SQL = """
         SELECT
             d.id,
@@ -35,14 +36,12 @@ class GNewsArticleEmbeddingRepository:
                     FILTER (WHERE e.input_hash IS NOT NULL),
                 '{}'
             ) AS existing_input_hashes
-        FROM news.v_gnews_article_deduped d
+        FROM news.v_gnews_article_daily d
         LEFT JOIN news.gnews_article_title_and_description_embedding e
             ON e.gnews_article_id = d.id
            AND e.model = %(model)s
         WHERE d.category = %(category)s
-          AND d.collection_date = %(collection_date)s
-          AND d.language = %(language)s
-          AND d.country = %(country)s
+          AND d.published_date = %(published_date)s
         GROUP BY d.id, d.title, d.description
         ORDER BY d.id;
     """
@@ -73,16 +72,12 @@ class GNewsArticleEmbeddingRepository:
     def get_candidates(
         self,
         category: str,
-        collection_date: date,
+        published_date: date,
         model: str,
-        language: str = "en",
-        country: str = "us",
     ) -> list[EmbeddingCandidate]:
         params = {
             "category": category,
-            "collection_date": collection_date,
-            "language": language,
-            "country": country,
+            "published_date": published_date,
             "model": model,
         }
 

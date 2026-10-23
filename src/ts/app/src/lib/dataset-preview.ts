@@ -1,35 +1,61 @@
 import { connection } from "next/server";
 import type { RelationDataset } from "@bsotd/pipeline/core";
 
+import { columnType, type ColumnType } from "./column-type";
 import { getPool } from "./db";
-import { countQuery, previewQuery } from "./preview-query";
+import { PAGE_SIZE } from "./pagination";
+import {
+  COLUMNS_QUERY,
+  countQuery,
+  previewQuery,
+  splitRelation,
+} from "./preview-query";
 
-export const PREVIEW_ROW_LIMIT = 50;
+export interface PreviewColumn {
+  name: string;
+  type: ColumnType;
+}
 
 export type DatasetPreview =
-  | { outcome: "rows"; rows: Record<string, unknown>[]; totalRows: number }
+  | {
+      outcome: "rows";
+      columns: PreviewColumn[];
+      rows: Record<string, unknown>[];
+      totalRows: number;
+    }
   | { outcome: "missing" }
   | { outcome: "error"; message: string };
 
 // PostgreSQL's error code for a relation that doesn't exist.
 const UNDEFINED_TABLE = "42P01";
 
-/** The first rows of a dataset, read live from PostgreSQL. */
+/** One page of a dataset's rows, with its columns, read live from PostgreSQL. */
 export async function fetchDatasetPreview(
   dataset: RelationDataset,
+  page: number,
 ): Promise<DatasetPreview> {
   // Read at request time, never while prerendering.
   await connection();
 
+  const { schema, relation } = splitRelation(dataset.name);
+
   try {
     const pool = getPool();
-    const [preview, count] = await Promise.all([
-      pool.query(previewQuery(dataset), [PREVIEW_ROW_LIMIT]),
+    const [columns, preview, count] = await Promise.all([
+      pool.query<{ column_name: string; data_type: string; udt_name: string }>(
+        COLUMNS_QUERY,
+        [schema, relation],
+      ),
+      pool.query(previewQuery(dataset), [PAGE_SIZE, (page - 1) * PAGE_SIZE]),
       pool.query<{ total: number }>(countQuery(dataset)),
     ]);
 
     return {
       outcome: "rows",
+      columns: columns.rows.map((column) => ({
+        name: column.column_name,
+        type: columnType(column.data_type, column.udt_name),
+      })),
       rows: preview.rows,
       totalRows: count.rows[0]?.total ?? 0,
     };

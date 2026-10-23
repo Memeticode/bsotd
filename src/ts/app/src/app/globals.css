@@ -12,6 +12,10 @@
   --accent-soft: #e9eefb;
   --on-accent: #ffffff;
   --danger: #b42318;
+  --warning: #9a5b00;
+  --warning-soft: #fdf3e1;
+  --success: #2f8f5b;
+  --success-soft: #e6f4ec;
 
   --status-implemented: #2f8f5b;
   --status-in-progress: #c48a10;
@@ -35,6 +39,10 @@
     --accent-soft: #1f2a44;
     --on-accent: #0e1424;
     --danger: #f97066;
+    --warning: #f0b44c;
+    --warning-soft: #33280f;
+    --success: #4cc38a;
+    --success-soft: #133024;
 
     --status-implemented: #4cc38a;
     --status-in-progress: #e0a83a;

@@ -1,4 +1,4 @@
-import { ColumnType } from "@bsotd/pipeline/core";
+import { ColumnType } from "./column-type.ts";
 
 const JSON_PREVIEW_LENGTH = 240;
 const VECTOR_PREVIEW_LENGTH = 3;
@@ -27,7 +27,6 @@ export function formatValue(
       return formatSparseVector(String(value));
     case ColumnType.Text:
     case ColumnType.Date:
-    case ColumnType.Url:
       return String(value);
   }
 }

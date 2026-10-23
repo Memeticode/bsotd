@@ -1,8 +1,6 @@
 
 from collections.abc import Sequence
 
-from fastembed import TextEmbedding
-
 
 class TextEmbedder:
     DEFAULT_MODEL = "BAAI/bge-small-en-v1.5"
@@ -12,6 +10,10 @@ class TextEmbedder:
         model: str = DEFAULT_MODEL,
         batch_size: int = 64,
     ) -> None:
+        # Imported here so code that only needs DEFAULT_MODEL doesn't
+        # load ONNX Runtime.
+        from fastembed import TextEmbedding
+
         self._model_name = model
         self._batch_size = batch_size
 

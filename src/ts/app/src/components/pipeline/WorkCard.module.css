@@ -1,0 +1,43 @@
+.card {
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.heading > :last-child {
+  margin-left: auto;
+}
+
+.title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.description {
+  margin: 6px 0 0;
+}
+
+.files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.files code {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--surface-muted);
+  font-size: 12px;
+}

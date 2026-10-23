@@ -1,9 +1,3 @@
-.count {
-  margin: 0 0 8px;
-  color: var(--text-muted);
-  font-size: 13px;
-}
-
 .scroll {
   max-height: 480px;
   overflow: auto;

@@ -11,3 +11,18 @@
   text-transform: uppercase;
   white-space: nowrap;
 }
+
+.tag[data-tone="accent"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.tag[data-tone="warning"] {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.tag[data-tone="success"] {
+  background: var(--success-soft);
+  color: var(--success);
+}

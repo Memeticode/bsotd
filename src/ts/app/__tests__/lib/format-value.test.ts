@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { ColumnType } from "@bsotd/pipeline/core";
-
+import { ColumnType } from "../../src/lib/column-type.ts";
 import { formatValue } from "../../src/lib/format-value.ts";
 
 test("null and undefined read as null", () => {

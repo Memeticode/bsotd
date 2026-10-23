@@ -1,0 +1,62 @@
+.card {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 12px;
+  padding: 18px 0;
+}
+
+.rank {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  line-height: 1;
+  text-align: right;
+}
+
+.body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.2rem;
+  letter-spacing: -0.005em;
+}
+
+.title a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.title a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.summary {
+  margin: 0;
+}
+
+.takeaways {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-muted);
+}
+
+.coverage {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0 0;
+}

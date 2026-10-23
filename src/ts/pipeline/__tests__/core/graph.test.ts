@@ -3,38 +3,54 @@ import { test } from "node:test";
 
 import {
   datasetProducer,
-  downstreamSteps,
-  stepEdges,
-  upstreamSteps,
+  downstreamJobs,
+  jobEdges,
+  jobOutputs,
+  upstreamJobs,
 } from "../../src/core/index.ts";
-import { pipelineOf, step, table } from "../helpers.ts";
+import {
+  codeStep,
+  pipelineJob,
+  pipelineOf,
+  sqlStep,
+  table,
+} from "../helpers.ts";
 
 const raw = table("raw");
 const clean = table("clean");
 const stats = table("stats");
 
 const pipeline = pipelineOf(
-  step("load", { outputs: [raw] }),
-  step("clean", { inputs: [raw], outputs: [clean, stats] }),
-  step("report", { inputs: [clean, stats] }),
+  pipelineJob("load", { steps: [codeStep([raw])] }),
+  pipelineJob("clean", { inputs: [raw], steps: [codeStep([clean, stats])] }),
+  pipelineJob("report", { inputs: [clean, stats] }),
 );
 
-test("stepEdges gives one edge per pair of connected steps", () => {
-  assert.deepEqual(stepEdges(pipeline), [
+test("a job outputs what its last step produces", () => {
+  const job = pipelineJob("load", { steps: [codeStep([raw]), sqlStep(clean)] });
+
+  assert.deepEqual(
+    jobOutputs(job).map((dataset) => dataset.name),
+    ["clean"],
+  );
+});
+
+test("jobEdges gives one edge per pair of connected jobs", () => {
+  assert.deepEqual(jobEdges(pipeline), [
     { from: "load", to: "clean", datasets: ["raw"] },
     { from: "clean", to: "report", datasets: ["clean", "stats"] },
   ]);
 });
 
-test("upstreamSteps and downstreamSteps follow the edges", () => {
-  const ids = (steps: { id: string }[]) => steps.map((s) => s.id);
+test("upstreamJobs and downstreamJobs follow the edges", () => {
+  const ids = (jobs: { id: string }[]) => jobs.map((job) => job.id);
 
-  assert.deepEqual(ids(upstreamSteps(pipeline, "clean")), ["load"]);
-  assert.deepEqual(ids(downstreamSteps(pipeline, "clean")), ["report"]);
-  assert.deepEqual(ids(upstreamSteps(pipeline, "load")), []);
+  assert.deepEqual(ids(upstreamJobs(pipeline, "clean")), ["load"]);
+  assert.deepEqual(ids(downstreamJobs(pipeline, "clean")), ["report"]);
+  assert.deepEqual(ids(upstreamJobs(pipeline, "load")), []);
 });
 
-test("datasetProducer finds the step that outputs a dataset", () => {
+test("datasetProducer finds the job that outputs a dataset", () => {
   assert.equal(datasetProducer(pipeline, "stats")?.id, "clean");
   assert.equal(datasetProducer(pipeline, "missing"), undefined);
 });

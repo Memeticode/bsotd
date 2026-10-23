@@ -4,30 +4,6 @@
   flex-direction: column;
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-}
-
-.home {
-  color: var(--text);
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.separator,
-.section {
-  color: var(--text-muted);
-}
-
-.section {
-  text-decoration: none;
-}
-
 .body {
   display: grid;
   flex: 1;

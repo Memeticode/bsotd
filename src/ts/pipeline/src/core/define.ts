@@ -1,43 +1,62 @@
+import { isEditorial } from "./editorial.ts";
+import { jobOutputs } from "./graph.ts";
 import { DatasetKind, type Pipeline } from "./models/index.ts";
 
 /**
  * Checks a pipeline definition and returns it unchanged, throwing on the
- * first problem. Requiring each step to come after the steps it reads from
- * also rules out cycles.
+ * first problem. Requiring each job to come after the jobs it reads from also
+ * rules out cycles.
  */
 export function definePipeline(pipeline: Pipeline): Pipeline {
-  const stepIds = new Set<string>();
-  // Dataset name -> ID of the step that outputs it.
+  const jobIds = new Set<string>();
+  // Dataset name -> ID of the job that produces it.
   const producers = new Map<string, string>();
+  // Names of datasets that jobs may read.
+  const outputs = new Set<string>();
 
-  for (const step of pipeline.steps) {
-    if (stepIds.has(step.id)) {
-      throw new Error(`Duplicate step id "${step.id}".`);
+  for (const job of pipeline.jobs) {
+    if (jobIds.has(job.id)) {
+      throw new Error(`Duplicate job id "${job.id}".`);
     }
-    stepIds.add(step.id);
+    jobIds.add(job.id);
 
-    if (step.transformations.length === 0) {
-      throw new Error(`Step "${step.id}" has no transformations.`);
+    if (job.steps.length === 0) {
+      throw new Error(`Job "${job.id}" has no steps.`);
     }
 
-    for (const input of step.inputs) {
-      if (input.kind !== DatasetKind.External && !producers.has(input.name)) {
+    // External data and editors' tables come from outside the jobs.
+    for (const input of job.inputs) {
+      if (
+        input.kind !== DatasetKind.External &&
+        !isEditorial(input) &&
+        !outputs.has(input.name)
+      ) {
         throw new Error(
-          `Step "${step.id}" reads "${input.name}", which no earlier step outputs.`,
+          `Job "${job.id}" reads "${input.name}", which no earlier job outputs.`,
         );
       }
     }
 
-    for (const output of step.outputs) {
-      const producer = producers.get(output.name);
+    for (const dataset of job.steps.flatMap((step) => step.produces)) {
+      if (isEditorial(dataset)) {
+        throw new Error(
+          `Job "${job.id}" produces "${dataset.name}", which editors write.`,
+        );
+      }
+
+      const producer = producers.get(dataset.name);
 
       if (producer !== undefined) {
         throw new Error(
-          `"${output.name}" is output by both "${producer}" and "${step.id}".`,
+          `"${dataset.name}" is produced twice: by "${producer}" and by "${job.id}".`,
         );
       }
 
-      producers.set(output.name, step.id);
+      producers.set(dataset.name, job.id);
+    }
+
+    for (const output of jobOutputs(job)) {
+      outputs.add(output.name);
     }
   }
 

@@ -1,0 +1,28 @@
+.definition {
+  margin-top: 10px;
+}
+
+.sql {
+  max-height: 360px;
+  margin: 0;
+  padding: 10px 12px;
+  overflow: auto;
+  border-radius: 6px;
+  background: var(--surface-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.note,
+.error {
+  margin: 10px 0 0;
+  font-size: 13px;
+}
+
+.note {
+  color: var(--text-muted);
+}
+
+.error {
+  color: var(--danger);
+}

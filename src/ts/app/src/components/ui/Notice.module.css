@@ -1,0 +1,19 @@
+.notice {
+  padding: 10px 14px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--accent-soft);
+}
+
+.notice[data-tone="warning"] {
+  border-left-color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.notice > :first-child {
+  margin-top: 0;
+}
+
+.notice > :last-child {
+  margin-bottom: 0;
+}

@@ -1,0 +1,50 @@
+.chain {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: link;
+}
+
+.link {
+  position: relative;
+  padding: 0 0 16px 40px;
+  counter-increment: link;
+}
+
+.link:last-child {
+  padding-bottom: 0;
+}
+
+/* The step's number. */
+.link::before {
+  content: counter(link);
+  position: absolute;
+  top: 12px;
+  left: 0;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* The line down to the next step. */
+.link:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 38px;
+  bottom: 0;
+  left: 12px;
+  width: 2px;
+  background: var(--border);
+}
+
+/* Data a step produces, set in under its card. */
+.produced {
+  margin: 10px 0 0 16px;
+}

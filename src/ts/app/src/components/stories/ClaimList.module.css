@@ -1,0 +1,84 @@
+.group + .group {
+  margin-top: 24px;
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 1rem;
+}
+
+.count {
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.group[data-agreement="disputed"] .heading {
+  color: var(--warning);
+}
+
+.description {
+  margin: 2px 0 10px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.claims {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.claim {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.group[data-agreement="disputed"] .claim {
+  border-left: 3px solid var(--warning);
+}
+
+.statement {
+  margin: 0;
+}
+
+.sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+  margin: 6px 0;
+  font-size: 13px;
+}
+
+.contradicted {
+  color: var(--warning);
+  font-weight: 600;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.evidence {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  font-size: 14px;
+}
+
+.outlet {
+  font-weight: 600;
+}
