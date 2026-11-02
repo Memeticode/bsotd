@@ -9,7 +9,7 @@ import type {
 
 // Saves editors' corrections. Each takes effect at once, and the jobs keep
 // them: story clustering replays moved articles, the ranking prefers editors'
-// ratings, and analyses carry their reviews.
+// verdicts on relevance, and analyses carry their reviews.
 
 /** A correction that can't be made, with a message for the editor. */
 export class EditorialError extends Error {}
@@ -139,25 +139,25 @@ export async function moveArticle(move: MoveArticle): Promise<MovedArticle> {
   });
 }
 
-/** Rates a story in place of the model; the model's ratings are kept. */
+/**
+ * Decides whether a story is relevant in place of the model. The model's
+ * ratings are kept, and still set the story's place in its group.
+ */
 export async function saveRelevanceOverride(
   override: RelevanceOverride,
 ): Promise<void> {
   await getEditorPool().query(
-    `INSERT INTO news.gnews_story_relevance_override (
-       story_id, category_relevance, importance, note
-     )
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO news.gnews_story_relevance_override (story_id, is_relevant, note)
+     VALUES ($1, $2, $3)
      ON CONFLICT (story_id) DO UPDATE
-     SET category_relevance = EXCLUDED.category_relevance,
-         importance = EXCLUDED.importance,
+     SET is_relevant = EXCLUDED.is_relevant,
          note = EXCLUDED.note,
          created_at = now()`,
-    [override.storyId, override.categoryRelevance, override.importance, override.note],
+    [override.storyId, override.isRelevant, override.note],
   );
 }
 
-/** Goes back to the model's rating. */
+/** Goes back to the model's verdict. */
 export async function clearRelevanceOverride(storyId: string): Promise<void> {
   await getEditorPool().query(
     `DELETE FROM news.gnews_story_relevance_override WHERE story_id = $1`,

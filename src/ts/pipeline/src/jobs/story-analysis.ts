@@ -52,7 +52,7 @@ export const storyAnalysis: PipelineJob = {
       kind: PipelineJobStepKind.Llm,
       name: "Analyze stories",
       description:
-        "For each day's highest-ranked stories that fit their category (the top five, with importance 2 or more, by default), Claude reads the full articles and returns a neutral headline, summary and takeaways; the story's claims, each marked fact or interpretation, with every article that supports or contradicts it and a quote as evidence; groups of syndicated copies; and each article's framing. Anything citing articles outside the story is dropped before saving.",
+        "For each day's highest-ranked relevant stories (the top five by default), Claude reads the full articles and returns a neutral headline, summary and takeaways; the story's claims, each marked fact or interpretation, with every article that supports or contradicts it and a quote as evidence; groups of syndicated copies; and each article's framing. Anything citing articles outside the story is dropped before saving.",
       status: Status.Implemented,
       implementedIn: [
         "scripts/analyze_gnews.py",
@@ -77,7 +77,7 @@ export const storyAnalysis: PipelineJob = {
       kind: PipelineJobStepKind.Sql,
       name: "Compare claims across sources",
       description:
-        "Counts the independent reports behind each claim, counting syndicated copies once: disputed when any contradicts it, corroborated when two or more support it, and single source otherwise. Articles that don't mention a claim are listed apart from those that contradict it.",
+        "Counts the independent reports behind each claim, counting syndicated copies once: disputed when any contradicts it, corroborated when two or more support it, and single source otherwise. Articles that don't mention a claim are listed apart from those that contradict it. report_ids records which report each source belongs to, so the app can tell a single source's story, run by several outlets, from one with several sources.",
       status: Status.Implemented,
       produces: [vGnewsStoryClaim],
     },

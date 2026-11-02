@@ -3,11 +3,19 @@ import type { QueryResultRow } from "pg";
 import { cache } from "react";
 
 import { getPool } from "./db";
-import type { Agreement, ClaimKind, ReviewVerdict, Stance } from "./story-display";
+import {
+  webUrl,
+  type Agreement,
+  type ClaimKind,
+  type ReviewVerdict,
+  type Source,
+  type Stance,
+} from "./story-display";
 
 // Reads for the story pages, from the jobs' views. Story and article IDs are
 // bigints, which node-postgres returns as strings, so they're strings here
-// too, including those read from the analyses' JSON.
+// too, including those read from the analyses' JSON. Links come from the
+// outlets' feeds, so only web addresses are kept.
 
 /** A category and day with stories. */
 export interface StoryDay {
@@ -23,18 +31,16 @@ export interface FeedStory {
   rank: number;
   leadTitle: string | null;
   leadDescription: string | null;
+  /** The lead article's image, and the outlet it's from. */
+  imageUrl: string | null;
+  imageSource: string | null;
   articleCount: number;
-  sourceCount: number;
-  sourceNames: string[];
-  firstPublishedAt: Date;
-  /** Editors' where given, otherwise the model's; null until rated. */
-  categoryRelevance: number | null;
-  importance: number | null;
-  fitsCategory: boolean | null;
-  ratedByEditor: boolean;
+  /** Every outlet's copy, syndicated copies included, by outlet. */
+  sources: Source[];
+  /** An editor's verdict where given, otherwise the model's; null until rated. */
+  isRelevant: boolean | null;
   headline: string | null;
   summary: string | null;
-  takeaways: string[];
   reviewVerdict: ReviewVerdict | null;
 }
 
@@ -43,23 +49,28 @@ export interface StoryDetail {
   category: string;
   publishedDate: string;
   rank: number;
-  storiesThatDay: number;
+  /** How many of the day's stories are relevant. */
+  relevantThatDay: number;
   leadTitle: string | null;
   leadDescription: string | null;
+  leadUrl: string | null;
+  /** The lead article's image, and the outlet it's from. */
+  imageUrl: string | null;
+  imageSource: string | null;
   articleCount: number;
   sourceCount: number;
-  sourceNames: string[];
+  /** Every outlet's copy, syndicated copies included, by outlet. */
+  sources: Source[];
   firstPublishedAt: Date;
   lastPublishedAt: Date;
   edited: boolean;
   clusteringMethod: string;
   clusteringVersion: string;
-  categoryRelevance: number | null;
-  importance: number | null;
-  fitsCategory: boolean | null;
+  /** An editor's verdict where given, otherwise the model's; null until rated. */
+  isRelevant: boolean | null;
   /** The model's latest rating, if it has rated the story. */
   rating: ModelRating | null;
-  editorRating: EditorRating | null;
+  editorVerdict: EditorVerdict | null;
 }
 
 export interface ModelRating {
@@ -67,6 +78,8 @@ export interface ModelRating {
   criteriaVersion: string;
   categoryRelevance: number;
   importance: number;
+  /** Whether the model's scores make the story relevant. */
+  isRelevant: boolean;
   rationale: string;
   ratedAt: Date;
   /** False when the story's articles changed after rating. */
@@ -75,9 +88,9 @@ export interface ModelRating {
   differentEventArticleIds: string[];
 }
 
-export interface EditorRating {
-  categoryRelevance: number;
-  importance: number;
+/** An editor's call on whether the story is relevant. */
+export interface EditorVerdict {
+  isRelevant: boolean;
   note: string | null;
 }
 
@@ -85,7 +98,6 @@ export interface StoryAnalysis {
   id: string;
   headline: string;
   summary: string;
-  takeaways: string[];
   syndicatedCopies: { articleIds: string[]; basis: string }[];
   framing: { articleId: string; framing: string }[];
   /** False when the story's articles changed after analysis. */
@@ -109,6 +121,8 @@ export interface StoryClaim {
   contradictingReports: number;
   sources: { articleId: string; stance: Stance; evidence: string }[];
   notMentionedArticleIds: string[];
+  /** Article ID -> its report's ID: syndicated copies share one. */
+  reportIds: Record<string, string>;
 }
 
 /** A claim among a day's, with the story it belongs to. */
@@ -144,6 +158,16 @@ async function query<Row extends QueryResultRow>(
   return (await getPool().query<Row>(sql, params)).rows;
 }
 
+// An outlet's copy as v_gnews_story lists it.
+interface SourceRow {
+  source_name: string;
+  url: string | null;
+}
+
+function toSources(rows: SourceRow[]): Source[] {
+  return rows.map((row) => ({ name: row.source_name, url: webUrl(row.url) }));
+}
+
 /** Every category and day with stories, latest first. */
 export function fetchStoryDays(): Promise<StoryDay[]> {
   return query<StoryDay>(
@@ -158,24 +182,23 @@ export function fetchStoryDays(): Promise<StoryDay[]> {
 }
 
 /** A day's stories in rank order, with their analyses where there are any. */
-export function fetchFeed(category: string, publishedDate: string): Promise<FeedStory[]> {
-  return query<FeedStory>(
+export async function fetchFeed(
+  category: string,
+  publishedDate: string,
+): Promise<FeedStory[]> {
+  const rows = await query<Omit<FeedStory, "sources"> & { sources: SourceRow[] }>(
     `SELECT
        s.id,
        s.relevance_rank AS rank,
        s.lead_title AS "leadTitle",
        s.lead_description AS "leadDescription",
+       s.lead_image_url AS "imageUrl",
+       s.lead_source_name AS "imageSource",
        s.article_count AS "articleCount",
-       s.source_count AS "sourceCount",
-       s.source_names AS "sourceNames",
-       s.first_published_at AS "firstPublishedAt",
-       s.category_relevance AS "categoryRelevance",
-       s.importance,
-       s.fits_category AS "fitsCategory",
-       s.editor_importance IS NOT NULL AS "ratedByEditor",
+       s.sources,
+       s.is_relevant AS "isRelevant",
        a.headline,
        a.summary,
-       COALESCE(a.takeaways, '{}') AS takeaways,
        a.review_verdict AS "reviewVerdict"
      FROM news.v_gnews_story_ranked s
      LEFT JOIN news.v_gnews_story_analysis a ON a.story_id = s.id
@@ -183,22 +206,89 @@ export function fetchFeed(category: string, publishedDate: string): Promise<Feed
      ORDER BY s.relevance_rank`,
     [category, publishedDate],
   );
+
+  return rows.map((row) => ({
+    ...row,
+    imageUrl: webUrl(row.imageUrl),
+    sources: toSources(row.sources),
+  }));
 }
 
-interface StoryRow extends Omit<StoryDetail, "rating" | "editorRating"> {
+interface StoryRow
+  extends Omit<StoryDetail, "sources" | "rating" | "editorVerdict"> {
+  sources: SourceRow[];
   // The model's rating: all null until the story is rated.
   ratingModel: string | null;
   criteriaVersion: string | null;
-  modelCategoryRelevance: number | null;
-  modelImportance: number | null;
+  categoryRelevance: number | null;
+  importance: number | null;
+  modelIsRelevant: boolean | null;
   rationale: string | null;
   ratedAt: Date | null;
   ratingIsCurrent: boolean | null;
   differentEventArticleIds: string[] | null;
-  // An editor's rating: all null unless an editor rated the story.
-  editorCategoryRelevance: number | null;
-  editorImportance: number | null;
+  // An editor's verdict: null unless an editor has given one.
+  editorIsRelevant: boolean | null;
   editorNote: string | null;
+}
+
+/** What the editor's day view shows of a story: what's decided and what's left. */
+export interface EditorStory {
+  id: string;
+  rank: number;
+  leadTitle: string | null;
+  articleCount: number;
+  sourceCount: number;
+  /** Null until rated. */
+  isRelevant: boolean | null;
+  /** Whether an editor decided, not the model. */
+  relevanceByEditor: boolean;
+  rated: boolean;
+  /** False when the story's articles changed after rating. */
+  ratingIsCurrent: boolean;
+  /** Articles still in the story that the model judged to report another event. */
+  flaggedArticles: number;
+  analyzed: boolean;
+  /** False when the story's articles changed after analysis. */
+  analysisIsCurrent: boolean;
+  headline: string | null;
+  reviewVerdict: ReviewVerdict | null;
+  claimCount: number;
+}
+
+/** A day's stories in rank order, with what editors may need to look at. */
+export function fetchEditorQueue(
+  category: string,
+  publishedDate: string,
+): Promise<EditorStory[]> {
+  return query<EditorStory>(
+    `SELECT
+       s.id,
+       s.relevance_rank AS rank,
+       s.lead_title AS "leadTitle",
+       s.article_count AS "articleCount",
+       s.source_count AS "sourceCount",
+       s.is_relevant AS "isRelevant",
+       s.editor_is_relevant IS NOT NULL AS "relevanceByEditor",
+       s.rated_at IS NOT NULL AS rated,
+       COALESCE(s.rating_is_current, true) AS "ratingIsCurrent",
+       cardinality(ARRAY(
+         SELECT unnest(s.different_event_article_ids)
+         INTERSECT
+         SELECT unnest(s.article_ids)
+       ))::int AS "flaggedArticles",
+       a.id IS NOT NULL AS analyzed,
+       COALESCE(a.analysis_is_current, true) AS "analysisIsCurrent",
+       a.headline,
+       a.review_verdict AS "reviewVerdict",
+       (SELECT count(*)::int FROM news.v_gnews_story_claim c
+        WHERE c.story_id = s.id) AS "claimCount"
+     FROM news.v_gnews_story_ranked s
+     LEFT JOIN news.v_gnews_story_analysis a ON a.story_id = s.id
+     WHERE s.category = $1 AND s.published_date = $2
+     ORDER BY s.relevance_rank`,
+    [category, publishedDate],
+  );
 }
 
 /** Cached per request, since a page and its metadata both need the story. */
@@ -211,32 +301,34 @@ export const fetchStory = cache(async function fetchStory(
        s.category,
        s.published_date AS "publishedDate",
        s.relevance_rank AS rank,
-       (SELECT count(*)::int FROM news.gnews_story d
-        WHERE d.category = s.category AND d.published_date = s.published_date)
-         AS "storiesThatDay",
+       (SELECT count(*)::int FROM news.v_gnews_story_ranked d
+        WHERE d.category = s.category
+          AND d.published_date = s.published_date
+          AND d.is_relevant) AS "relevantThatDay",
        s.lead_title AS "leadTitle",
        s.lead_description AS "leadDescription",
+       s.lead_url AS "leadUrl",
+       s.lead_image_url AS "imageUrl",
+       s.lead_source_name AS "imageSource",
        s.article_count AS "articleCount",
        s.source_count AS "sourceCount",
-       s.source_names AS "sourceNames",
+       s.sources,
        s.first_published_at AS "firstPublishedAt",
        s.last_published_at AS "lastPublishedAt",
        s.edited,
        s.clustering_method AS "clusteringMethod",
        s.clustering_version AS "clusteringVersion",
-       s.category_relevance AS "categoryRelevance",
-       s.importance,
-       s.fits_category AS "fitsCategory",
+       s.is_relevant AS "isRelevant",
        s.relevance_model AS "ratingModel",
        s.relevance_criteria_version AS "criteriaVersion",
-       s.model_category_relevance AS "modelCategoryRelevance",
-       s.model_importance AS "modelImportance",
+       s.category_relevance AS "categoryRelevance",
+       s.importance,
+       s.model_is_relevant AS "modelIsRelevant",
        s.relevance_rationale AS rationale,
        s.rated_at AS "ratedAt",
        s.rating_is_current AS "ratingIsCurrent",
        s.different_event_article_ids AS "differentEventArticleIds",
-       s.editor_category_relevance AS "editorCategoryRelevance",
-       s.editor_importance AS "editorImportance",
+       s.editor_is_relevant AS "editorIsRelevant",
        s.editor_note AS "editorNote"
      FROM news.v_gnews_story_ranked s
      WHERE s.id = $1`,
@@ -248,43 +340,44 @@ export const fetchStory = cache(async function fetchStory(
   }
 
   const {
+    sources,
     ratingModel,
     criteriaVersion,
-    modelCategoryRelevance,
-    modelImportance,
+    categoryRelevance,
+    importance,
+    modelIsRelevant,
     rationale,
     ratedAt,
     ratingIsCurrent,
     differentEventArticleIds,
-    editorCategoryRelevance,
-    editorImportance,
+    editorIsRelevant,
     editorNote,
     ...story
   } = row;
 
   return {
     ...story,
+    leadUrl: webUrl(story.leadUrl),
+    imageUrl: webUrl(story.imageUrl),
+    sources: toSources(sources),
     rating:
       ratingModel === null
         ? null
         : {
             model: ratingModel,
             criteriaVersion: criteriaVersion!,
-            categoryRelevance: modelCategoryRelevance!,
-            importance: modelImportance!,
+            categoryRelevance: categoryRelevance!,
+            importance: importance!,
+            isRelevant: modelIsRelevant!,
             rationale: rationale!,
             ratedAt: ratedAt!,
             isCurrent: ratingIsCurrent!,
             differentEventArticleIds: differentEventArticleIds ?? [],
           },
-    editorRating:
-      editorCategoryRelevance === null
+    editorVerdict:
+      editorIsRelevant === null
         ? null
-        : {
-            categoryRelevance: editorCategoryRelevance,
-            importance: editorImportance!,
-            note: editorNote,
-          },
+        : { isRelevant: editorIsRelevant, note: editorNote },
   };
 });
 
@@ -302,7 +395,6 @@ export const fetchStoryAnalysis = cache(async function fetchStoryAnalysis(
        id,
        headline,
        summary,
-       takeaways,
        syndicated_copies AS "syndicatedCopies",
        framing,
        analysis_is_current AS "isCurrent",
@@ -336,10 +428,11 @@ export const fetchStoryAnalysis = cache(async function fetchStoryAnalysis(
   };
 });
 
-// A claim as v_gnews_story_claim has it, with its sources' article IDs as
-// numbers, as the analysis JSON stores them.
-type ClaimRow<Claim extends StoryClaim> = Omit<Claim, "sources"> & {
+// A claim as v_gnews_story_claim has it, with article IDs in its JSON as
+// numbers, as the analysis stores them.
+type ClaimRow<Claim extends StoryClaim> = Omit<Claim, "sources" | "reportIds"> & {
   sources: { article_id: number; stance: Stance; evidence: string }[];
+  reportIds: Record<string, number>;
 };
 
 const CLAIM_COLUMNS = `
@@ -350,7 +443,8 @@ const CLAIM_COLUMNS = `
   c.supporting_reports AS "supportingReports",
   c.contradicting_reports AS "contradictingReports",
   c.sources,
-  c.not_mentioned_article_ids AS "notMentionedArticleIds"`;
+  c.not_mentioned_article_ids AS "notMentionedArticleIds",
+  c.report_ids AS "reportIds"`;
 
 function toClaim<Claim extends StoryClaim>(row: ClaimRow<Claim>): Claim {
   return {
@@ -360,10 +454,19 @@ function toClaim<Claim extends StoryClaim>(row: ClaimRow<Claim>): Claim {
       stance: source.stance,
       evidence: source.evidence,
     })),
+    reportIds: Object.fromEntries(
+      Object.entries(row.reportIds).map(([article, report]) => [
+        article,
+        String(report),
+      ]),
+    ),
   } as Claim;
 }
 
-export async function fetchStoryClaims(storyId: string): Promise<StoryClaim[]> {
+/** Cached per request, since a page and its metadata both need the claims. */
+export const fetchStoryClaims = cache(async function fetchStoryClaims(
+  storyId: string,
+): Promise<StoryClaim[]> {
   const rows = await query<ClaimRow<StoryClaim>>(
     `SELECT ${CLAIM_COLUMNS}
      FROM news.v_gnews_story_claim c
@@ -373,7 +476,7 @@ export async function fetchStoryClaims(storyId: string): Promise<StoryClaim[]> {
   );
 
   return rows.map(toClaim);
-}
+});
 
 /**
  * The claims of a day's stories, story by story in rank order. Analyses
@@ -397,24 +500,29 @@ export async function fetchDayClaims(
   return rows.map(toClaim);
 }
 
-/** The outlet behind each of a day's articles, by article ID. */
-export async function fetchDayOutlets(
+/** The outlet behind each of a day's articles and its link, by article ID. */
+export async function fetchDaySources(
   category: string,
   publishedDate: string,
-): Promise<Map<string, string>> {
-  const rows = await query<{ id: string; sourceName: string | null }>(
-    `SELECT id, source_name AS "sourceName"
+): Promise<Map<string, Source>> {
+  const rows = await query<{ id: string; sourceName: string | null; url: string | null }>(
+    `SELECT id, source_name AS "sourceName", url
      FROM news.v_gnews_article_daily
      WHERE category = $1 AND published_date = $2`,
     [category, publishedDate],
   );
 
-  return new Map(rows.map((row) => [row.id, row.sourceName ?? "Unknown outlet"]));
+  return new Map(
+    rows.map((row) => [
+      row.id,
+      { name: row.sourceName ?? "Unknown outlet", url: webUrl(row.url) },
+    ]),
+  );
 }
 
 /** A story's articles, earliest first. */
-export function fetchStoryArticles(storyId: string): Promise<StoryArticle[]> {
-  return query<StoryArticle>(
+export async function fetchStoryArticles(storyId: string): Promise<StoryArticle[]> {
+  const rows = await query<StoryArticle>(
     `SELECT
        a.id,
        a.title,
@@ -430,15 +538,24 @@ export function fetchStoryArticles(storyId: string): Promise<StoryArticle[]> {
      ORDER BY a.published_at, a.id`,
     [storyId],
   );
+
+  return rows.map((row) => ({ ...row, url: webUrl(row.url) }));
 }
 
-/** The day's other stories, in rank order, titled as the feed titles them. */
+/**
+ * The day's other stories, in rank order, titled as the feed titles them: a
+ * one-article story by its own headline.
+ */
 export function fetchOtherStories(story: StoryDetail): Promise<StoryOption[]> {
   return query<StoryOption>(
     `SELECT
        s.id,
        COALESCE(
-         CASE WHEN a.review_verdict IS DISTINCT FROM 'rejected' THEN a.headline END,
+         CASE
+           WHEN s.article_count > 1
+            AND a.review_verdict IS DISTINCT FROM 'rejected'
+           THEN a.headline
+         END,
          s.lead_title,
          'Untitled story'
        ) AS title,

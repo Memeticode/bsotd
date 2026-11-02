@@ -40,7 +40,7 @@ export const vGnewsArticleRanked: RelationDataset = {
   kind: DatasetKind.View,
   name: "news.v_gnews_article_ranked",
   description:
-    "Every article with its duplicate group's size and outlets, and its rank within the group.",
+    "Every article with its duplicate group's size, outlets and their URLs, and its rank within the group.",
   // Keeps each group's articles together, in rank order.
   sortBy: [
     { column: "collection_date", direction: SortDirection.Descending },
@@ -54,7 +54,7 @@ export const vGnewsArticleDeduped: RelationDataset = {
   kind: DatasetKind.View,
   name: "news.v_gnews_article_deduped",
   description:
-    "One representative per group of exact duplicates, with the group's size and outlets.",
+    "One representative per group of exact duplicates, with the group's size, outlets and their URLs.",
 };
 
 export const vGnewsArticleDaily: RelationDataset = {
@@ -109,7 +109,7 @@ export const gnewsIngestion: PipelineJob = {
       kind: PipelineJobStepKind.Sql,
       name: "Group exact duplicates",
       description:
-        "Groups articles whose keys match within one collection (category, collection date, language and country), counting each group and listing its outlets. rn ranks a group's articles by publication time, then GNews ID, then ID.",
+        "Groups articles whose keys match within one collection (category, collection date, language and country), counting each group and listing its outlets and the URL of each one's copy. rn ranks a group's articles by publication time, then GNews ID, then ID.",
       status: Status.Implemented,
       produces: [vGnewsArticleRanked],
     },
@@ -117,7 +117,7 @@ export const gnewsIngestion: PipelineJob = {
       kind: PipelineJobStepKind.Sql,
       name: "Choose a representative",
       description:
-        "Keeps the first-ranked article of each group, with its group's size and outlets.",
+        "Keeps the first-ranked article of each group, with its group's size, outlets and URLs.",
       status: Status.Implemented,
       produces: [vGnewsArticleDeduped],
     },

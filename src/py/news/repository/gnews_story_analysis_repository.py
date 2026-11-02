@@ -25,14 +25,13 @@ class StoryAnalysis:
 
 
 class GNewsStoryAnalysisRepository:
-    # The day's highest-ranked stories that fit their category.
+    # The day's highest-ranked relevant stories.
     RELEVANT_STORIES_SQL = """
         SELECT id, category, published_date, article_ids
         FROM news.v_gnews_story_ranked
         WHERE category = %(category)s
           AND published_date = %(published_date)s
-          AND fits_category
-          AND importance >= %(min_importance)s
+          AND is_relevant
         ORDER BY relevance_rank
         LIMIT %(limit)s;
     """
@@ -83,14 +82,12 @@ class GNewsStoryAnalysisRepository:
         self,
         category: str,
         published_date: date,
-        min_importance: int,
         limit: int,
     ) -> list[Story]:
         """In rank order."""
         params = {
             "category": category,
             "published_date": published_date,
-            "min_importance": min_importance,
             "limit": limit,
         }
 

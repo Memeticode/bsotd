@@ -48,7 +48,7 @@ export async function moveArticleAction(
   // editor follows the article.
   const page = previousStoryRemoved ? storyId : move.value.fromStoryId;
 
-  redirect(`/stories/${page}?movedTo=${storyId}`);
+  redirect(`/editor/stories/${page}?movedTo=${storyId}`);
 }
 
 export async function saveRelevanceAction(
@@ -61,7 +61,10 @@ export async function saveRelevanceAction(
     return failed(override);
   }
 
-  return save(() => saveRelevanceOverride(override.value), "Rating saved.");
+  return save(
+    () => saveRelevanceOverride(override.value),
+    override.value.isRelevant ? "Marked relevant." : "Marked not relevant.",
+  );
 }
 
 export async function clearRelevanceAction(
@@ -74,7 +77,7 @@ export async function clearRelevanceAction(
     return failed(storyId);
   }
 
-  return save(() => clearRelevanceOverride(storyId.value), "Using the model's rating.");
+  return save(() => clearRelevanceOverride(storyId.value), "Using the model's verdict.");
 }
 
 export async function reviewAnalysisAction(

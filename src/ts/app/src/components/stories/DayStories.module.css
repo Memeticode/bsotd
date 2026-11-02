@@ -29,15 +29,7 @@
   font-size: 14px;
 }
 
-.outside {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.empty {
   margin: 0;
-  padding-left: 20px;
-}
-
-.muted {
   color: var(--text-muted);
-  font-size: 13px;
 }

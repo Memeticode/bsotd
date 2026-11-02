@@ -108,8 +108,10 @@ SELECT
 
     COUNT(*) OVER w_group AS duplicates_count,
 
-    -- Outlets carrying the article, earliest publication first.
+    -- Outlets carrying the article, earliest publication first, and
+    -- the URL of each one's copy.
     array_agg(source_name) OVER w_ordered AS duplicate_source_names,
+    array_agg(url) OVER w_ordered AS duplicate_urls,
 
     ROW_NUMBER() OVER w_ordered AS rn
 
@@ -151,6 +153,7 @@ SELECT
 
     duplicates_count,
     duplicate_source_names,
+    duplicate_urls,
 
     content,
     url,
@@ -191,6 +194,7 @@ SELECT
 
     duplicates_count,
     duplicate_source_names,
+    duplicate_urls,
 
     content,
     url,
@@ -533,14 +537,25 @@ membership AS (
     GROUP BY story_id
 ),
 
--- Every outlet carrying the story, syndicated copies included.
+-- Every outlet carrying the story, syndicated copies included, and
+-- each outlet's copy: its URL and the article it was deduplicated
+-- into, by outlet.
 outlet AS (
     SELECT
         story_id,
         count(DISTINCT outlet_name)::int AS source_count,
-        array_agg(DISTINCT outlet_name ORDER BY outlet_name) AS source_names
+        array_agg(DISTINCT outlet_name ORDER BY outlet_name) AS source_names,
+        jsonb_agg(
+            jsonb_build_object(
+                'article_id', id,
+                'source_name', outlet_name,
+                'url', outlet_url
+            )
+            ORDER BY outlet_name, published_at, id
+        ) AS sources
     FROM story_article
-    CROSS JOIN LATERAL unnest(duplicate_source_names) AS o(outlet_name)
+    CROSS JOIN LATERAL unnest(duplicate_source_names, duplicate_urls)
+        AS o(outlet_name, outlet_url)
     WHERE outlet_name IS NOT NULL
     GROUP BY story_id
 )
@@ -561,6 +576,7 @@ SELECT
     m.article_ids,
     COALESCE(o.source_count, 0) AS source_count,
     COALESCE(o.source_names, '{}') AS source_names,
+    COALESCE(o.sources, '[]') AS sources,
 
     m.first_published_at,
     m.last_published_at,
@@ -628,18 +644,15 @@ CREATE TABLE news.gnews_story_relevance (
 
 
 -- editorial input
--- editors' relevance ratings, which take precedence over the model's
+-- editors' verdicts on whether a story is relevant, which take
+-- precedence over the model's ratings
 
 CREATE TABLE news.gnews_story_relevance_override (
     story_id bigint PRIMARY KEY
         REFERENCES news.gnews_story(id)
         ON DELETE CASCADE,
 
-    category_relevance smallint NOT NULL
-        CHECK (category_relevance BETWEEN 1 AND 5),
-
-    importance smallint NOT NULL
-        CHECK (importance BETWEEN 1 AND 5),
+    is_relevant boolean NOT NULL,
 
     note text,
 
@@ -648,8 +661,9 @@ CREATE TABLE news.gnews_story_relevance_override (
 
 
 -- pipeline step
--- stories ranked within each category and day, by editors' ratings
--- where there are any and the model's latest otherwise
+-- stories sorted into relevant or not, by an editor's verdict where
+-- there is one and the model's latest rating otherwise, and ranked
+-- within each category and day
 
 CREATE OR REPLACE VIEW news.v_gnews_story_ranked AS
 WITH latest_rating AS (
@@ -664,8 +678,8 @@ rated AS (
 
         r.model AS relevance_model,
         r.criteria_version AS relevance_criteria_version,
-        r.category_relevance AS model_category_relevance,
-        r.importance AS model_importance,
+        r.category_relevance,
+        r.importance,
         r.rationale AS relevance_rationale,
         r.different_event_article_ids,
         r.created_at AS rated_at,
@@ -673,13 +687,14 @@ rated AS (
         -- False once the story's articles change after rating.
         r.article_ids = s.article_ids AS rating_is_current,
 
-        o.category_relevance AS editor_category_relevance,
-        o.importance AS editor_importance,
-        o.note AS editor_note,
+        -- Relevant: in the category and of moderate importance or
+        -- more, 3 or more on both scales. Minor and trivial stories,
+        -- and those outside the category, are not.
+        r.category_relevance >= 3 AND r.importance >= 3
+            AS model_is_relevant,
 
-        COALESCE(o.category_relevance, r.category_relevance)
-            AS category_relevance,
-        COALESCE(o.importance, r.importance) AS importance
+        o.is_relevant AS editor_is_relevant,
+        o.note AS editor_note
 
     FROM news.v_gnews_story s
 
@@ -693,16 +708,16 @@ rated AS (
 SELECT
     rated.*,
 
-    -- Category fit and importance stay separate: fit decides whether
-    -- a story belongs in the category's feed, importance its place.
-    category_relevance >= 3 AS fits_category,
+    -- NULL until the model rates the story or an editor decides.
+    COALESCE(editor_is_relevant, model_is_relevant) AS is_relevant,
 
-    -- Stories that fit come first, then by importance. Unrated
-    -- stories come last.
+    -- Relevant stories first, then the rest, each by importance.
+    -- Unrated stories come last.
     ROW_NUMBER() OVER (
         PARTITION BY category, published_date
         ORDER BY
-            (category_relevance >= 3) DESC NULLS LAST,
+            COALESCE(editor_is_relevant, model_is_relevant)
+                DESC NULLS LAST,
             importance DESC NULLS LAST,
             category_relevance DESC NULLS LAST,
             source_count DESC,
@@ -869,7 +884,11 @@ tally AS (
         count(DISTINCT report_id)
             FILTER (WHERE stance = 'supports')::int AS supporting_reports,
         count(DISTINCT report_id)
-            FILTER (WHERE stance = 'contradicts')::int AS contradicting_reports
+            FILTER (WHERE stance = 'contradicts')::int AS contradicting_reports,
+
+        -- Each source's report, so readers that set sources aside can
+        -- still count copies of one report once.
+        jsonb_object_agg(article_id, report_id) AS report_ids
     FROM source
     GROUP BY analysis_id, claim_number
 )
@@ -907,7 +926,11 @@ SELECT
     -- Each source's stance and its quoted evidence.
     claim.claim -> 'sources' AS sources,
 
-    claim.review_verdict
+    claim.review_verdict,
+
+    -- Article ID -> the ID of the report it belongs to: its own, or the
+    -- first copy's when it's one of several syndicated copies.
+    COALESCE(t.report_ids, '{}') AS report_ids
 
 FROM claim
 

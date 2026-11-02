@@ -4,6 +4,7 @@ import styles from "./SiteHeader.module.css";
 
 const SECTIONS = [
   { id: "stories", href: "/", label: "Stories" },
+  { id: "editor", href: "/editor", label: "Editor" },
   { id: "pipeline", href: "/pipeline", label: "Pipeline" },
 ] as const;
 

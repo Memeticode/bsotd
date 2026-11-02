@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 
-import { moveArticleAction } from "@/app/stories/actions";
+import { moveArticleAction } from "@/app/editor/actions";
 import { IDLE } from "@/lib/action-state";
 import { OWN_STORY } from "@/lib/editorial-input";
 import type { StoryOption } from "@/lib/stories";

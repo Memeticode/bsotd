@@ -35,14 +35,14 @@ Daily Article Pair Similarity
     ↓
 Story Clustering                  ← editors' corrections
     ↓
-Story Relevance Classification    ← editors' ratings
+Story Relevance Classification    ← editors' verdicts
     ↓
 LLM-Based Story Analysis          ← editors' reviews
 ```
 
 PostgreSQL is the central data store between jobs, and each job works on one category and UTC publication day at a time. Jobs record the model, settings and input hash behind every output, so rerunning a job recomputes only what changed, and each can evolve without changes to the jobs before it.
 
-Editors review stories in the app: they move articles between stories, rate stories in place of the model, and approve or reject analyses. Corrections take effect at once, and the jobs keep them when they run again.
+Editors review stories in the app: they move articles between stories, mark stories relevant or not in place of the model, and approve or reject analyses. Corrections take effect at once, and the jobs keep them when they run again.
 
 The pipeline is defined as data in `src/ts/pipeline`: each job's inputs, steps and datasets. The app in `src/ts/app` shows each day's stories, and under Pipeline it draws the jobs as a graph with each step's SQL and live, paginated data.
 
@@ -50,7 +50,7 @@ The pipeline is defined as data in `src/ts/pipeline`: each job's inputs, steps a
 
 The initial implementation uses the [GNews API](https://gnews.io/) to retrieve categorized news articles.
 
-Raw article data is stored in PostgreSQL using `jsonb`, preserving the original API content. SQL views on the raw table extract article fields and remove exact duplicates, then keep one row per article per category and UTC publication day: the daily set that every later job works on.
+Raw article data is stored in PostgreSQL using `jsonb`, preserving the original API content. SQL views on the raw table extract article fields and remove exact duplicates, keeping every outlet that ran each one and its link, then keep one row per article per category and UTC publication day: the daily set that every later job works on.
 
 The ingestion code is intentionally minimal and does not perform story classification or analytical transformations.
 
@@ -58,7 +58,7 @@ The ingestion code is intentionally minimal and does not perform story classific
 
 Each day's articles are grouped into stories by agglomerative clustering on a blend of embedding and TF-IDF similarity, tuned to split rather than merge articles that merely share a topic. Both are computed from each article's title, description and the first 300 characters of its content, which carry the specifics when a headline is generic. A story keeps its identity as articles join it or editors move them.
 
-Claude rates each story on two separate scales: how squarely it belongs in its category, and how important it is. It also flags articles that seem to report a different event from the rest of their story. The ratings rank each day's stories, and the top-ranked stories go on to analysis.
+Claude rates each story on two separate scales: how squarely it belongs in its category, and how important it is. It also flags articles that seem to report a different event from the rest of their story. A story is relevant when it belongs in its category and is of moderate importance or more, 3 or more on both scales; minor and trivial stories, and those outside the category, are not. Relevant stories come first, ranked by importance, and the top-ranked of them go on to analysis.
 
 Analysis extracts each story's checkable claims, quoting every article that supports or contradicts them. Syndicated copies count as one report, and an article that doesn't mention a claim is never treated as contradicting it. Claims are classed as corroborated, single-source or disputed, alongside notes on how each outlet frames the story.
 
@@ -130,7 +130,7 @@ src/ts/            npm workspace for the TypeScript packages
     __tests__/
   app/             @bsotd/app: Next.js app for the day's stories and the pipeline
     src/
-      app/         Routes: the story feed, story pages and pipeline pages
+      app/         Routes: Stories for readers, Editor for corrections, and Pipeline
       components/  Stories, the DAG, pipeline views and shared UI
       lib/         Database reads, editors' corrections and formatting
     __tests__/
@@ -187,8 +187,8 @@ Or run the jobs one at a time, in this order:
 | `vectorize_gnews.py` | Fit the day's TF-IDF corpus and vectors |
 | `score_gnews.py` | Score the similarity of every pair of articles |
 | `cluster_gnews.py` | Group articles into stories, replaying editors' corrections |
-| `rate_gnews.py` | Rate each story's category relevance and importance with Claude |
-| `analyze_gnews.py` | Analyze the top-ranked stories with Claude: five by default, set with `--limit` |
+| `rate_gnews.py` | Rate each story's category relevance and importance with Claude, which decide whether it's relevant |
+| `analyze_gnews.py` | Analyze the day's relevant stories with Claude, highest-ranked first: five by default, set with `--limit` |
 
 Jobs skip work that's already current, so rerunning a day only recomputes what changed, such as new articles or an editor's correction.
 
@@ -208,7 +208,7 @@ npm test           # pipeline and app tests
 npm run typecheck
 ```
 
-The homepage shows the latest day's stories, most relevant first. Each story page has its claims, how each outlet covers it, its articles and editors' tools. The app has no accounts yet, so anyone who can reach it can make corrections: keep it on a trusted network.
+The homepage shows the latest day's relevant stories, most important first, with the rest collapsed under Not relevant. Each story shows its headline, summary and image, links to every outlet carrying it, and its claims by status. A story with two or more independent sources has filters for its claims: choose one or more sources to see the claims they report or contradict, each claim showing where each chosen source stands, and one or more statuses. Statuses always count every source. A single-source story keeps its outlet's own headline. A single source's claims are simply listed, since there's nothing to compare. Each story page has its claims, how each outlet covers it and its articles. Editors work in a separate Editor section: a day's stories with where each stands (relevance and who decided, analyses to review, flagged articles, anything out of date), and a page per story to correct it. The app has no accounts yet, so anyone who can reach it can make corrections: keep it on a trusted network.
 
 ## Development Roadmap
 
@@ -250,4 +250,4 @@ The intended production application will focus primarily on the **Nation** categ
 
 ---
 
-**Project Status:** Every stage runs end to end for the Science category: ingestion and deduplication, sentence embeddings, TF-IDF, pair similarity, story clustering, relevance rating and story analysis. Editors can correct stories, ratings and analyses in the app. Next: stories that persist across days, a relevance classifier trained on editors' ratings, and editor accounts.
+**Project Status:** Every stage runs end to end for the Science category: ingestion and deduplication, sentence embeddings, TF-IDF, pair similarity, story clustering, relevance rating and story analysis. Editors can correct stories, relevance and analyses in the app. Next: stories that persist across days, a relevance classifier trained on editors' ratings, and editor accounts.

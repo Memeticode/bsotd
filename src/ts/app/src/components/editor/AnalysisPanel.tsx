@@ -16,7 +16,7 @@ export function AnalysisPanel({
   return (
     <section className={styles.panel} aria-labelledby="analysis-review">
       <h3 id="analysis-review" className={styles.heading}>
-        Analysis
+        Review
       </h3>
       <p className={styles.muted}>
         {analysis.model}, prompt {analysis.promptVersion},{" "}

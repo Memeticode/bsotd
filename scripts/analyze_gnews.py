@@ -21,7 +21,7 @@ from news.stories.gnews_story_analysis import GNewsStoryAnalysis
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Extract claims from one day's most relevant GNews stories and "
+            "Extract claims from one day's relevant GNews stories and "
             "compare their sources with Claude."
         )
     )
@@ -45,17 +45,10 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "--min-importance",
-        type=int,
-        default=2,
-        help="Lowest importance, 1 to 5, to analyze (default: 2)",
-    )
-
-    parser.add_argument(
         "--limit",
         type=int,
         default=5,
-        help="Most stories to analyze, highest-ranked first (default: 5)",
+        help="Most relevant stories to analyze, highest-ranked first (default: 5)",
     )
 
     parser.add_argument(
@@ -102,7 +95,6 @@ def main() -> None:
         repository=GNewsStoryAnalysisRepository(connection_string),
         llm=llm,
         model=args.model,
-        min_importance=args.min_importance,
         limit=args.limit,
     )
 

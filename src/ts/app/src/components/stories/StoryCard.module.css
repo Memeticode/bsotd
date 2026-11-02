@@ -1,11 +1,23 @@
+/* The rank beside the story, and its claims beneath. */
 .card {
   display: grid;
+  grid-template-areas:
+    "rank body"
+    ".    claims";
   grid-template-columns: 40px minmax(0, 1fr);
-  gap: 12px;
+  column-gap: 12px;
   padding: 18px 0;
 }
 
+.unranked {
+  grid-template-areas:
+    "body"
+    "claims";
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .rank {
+  grid-area: rank;
   margin: 2px 0 0;
   color: var(--text-muted);
   font-size: 1.5rem;
@@ -15,11 +27,30 @@
   text-align: right;
 }
 
+/* Text wraps around the image, then runs the full width beneath it. */
 .body {
-  display: flex;
+  display: flow-root;
   min-width: 0;
-  flex-direction: column;
-  gap: 6px;
+  grid-area: body;
+}
+
+.image {
+  float: right;
+  margin: 3px 0 8px 16px;
+}
+
+/* Left out when the image doesn't load. */
+.image:empty {
+  display: none;
+}
+
+.image img {
+  display: block;
+  width: 176px;
+  aspect-ratio: 16 / 9;
+  border-radius: 6px;
+  background: var(--surface-muted);
+  object-fit: cover;
 }
 
 .title {
@@ -39,32 +70,46 @@
 }
 
 .summary {
-  margin: 0;
+  margin: 6px 0 0;
 }
 
-.takeaways {
-  margin: 0;
-  padding-left: 18px;
-  color: var(--text-muted);
-}
-
-.coverage {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 13px;
-}
-
-.signals {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 2px 0 0;
+.sources {
+  margin-top: 6px;
 }
 
 .claims {
-  margin-top: 2px;
+  grid-area: claims;
+  margin-top: 8px;
 }
 
 .disputed {
   color: var(--warning);
+}
+
+@media (max-width: 600px) {
+  .card {
+    grid-template-columns: 24px minmax(0, 1fr);
+    column-gap: 10px;
+  }
+
+  .unranked {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rank {
+    font-size: 1.2rem;
+  }
+
+  .title {
+    font-size: 1.05rem;
+  }
+
+  .image {
+    margin-left: 12px;
+  }
+
+  .image img {
+    width: 96px;
+    aspect-ratio: 1;
+  }
 }

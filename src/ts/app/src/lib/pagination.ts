@@ -2,6 +2,12 @@ export const PAGE_SIZE = 10;
 
 export type SearchParams = Record<string, string | string[] | undefined>;
 
+/** A query parameter's value, the first when it's given more than once. */
+export function param(params: SearchParams, key: string): string | undefined {
+  const value = params[key];
+  return Array.isArray(value) ? value[0] : value;
+}
+
 /**
  * Where a page's tables live. Each table's page number is kept in the query
  * string under its dataset's name, so tables page independently.

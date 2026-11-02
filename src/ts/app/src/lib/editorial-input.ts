@@ -18,8 +18,7 @@ export interface MoveArticle {
 
 export interface RelevanceOverride {
   storyId: string;
-  categoryRelevance: number;
-  importance: number;
+  isRelevant: boolean;
   note: string | null;
 }
 
@@ -67,26 +66,25 @@ export function parseMoveArticle(form: FormData): Parsed<MoveArticle> {
 
 export function parseRelevanceOverride(form: FormData): Parsed<RelevanceOverride> {
   const storyId = id(form, "storyId");
-  const categoryRelevance = score(form, "categoryRelevance");
-  const importance = score(form, "importance");
+  const relevant = text(form, "relevant");
   const note = parseNote(form);
 
   if (storyId === null) {
     return invalid("The story is missing.");
   }
 
-  if (categoryRelevance === null || importance === null) {
-    return invalid("Choose a score from 1 to 5 for each scale.");
+  if (relevant !== "true" && relevant !== "false") {
+    return invalid("Choose relevant or not relevant.");
   }
 
   if (!note.ok) {
     return note;
   }
 
-  return valid({ storyId, categoryRelevance, importance, note: note.value });
+  return valid({ storyId, isRelevant: relevant === "true", note: note.value });
 }
 
-/** For actions on a story as a whole, such as clearing an editor's rating. */
+/** For actions on a story as a whole, such as clearing an editor's verdict. */
 export function parseStoryId(form: FormData): Parsed<string> {
   const storyId = id(form, "storyId");
   return storyId === null ? invalid("The story is missing.") : valid(storyId);
@@ -148,11 +146,6 @@ function id(form: FormData, name: string): string | null {
 
 function isId(value: string): boolean {
   return /^[1-9]\d{0,18}$/.test(value);
-}
-
-function score(form: FormData, name: string): number | null {
-  const value = Number(text(form, name));
-  return Number.isInteger(value) && value >= 1 && value <= 5 ? value : null;
 }
 
 function valid<Value>(value: Value): Parsed<Value> {

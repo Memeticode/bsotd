@@ -6,8 +6,6 @@ import {
   dayHref,
   formatDay,
   formatShortDay,
-  type Agreement,
-  type DayView,
 } from "@/lib/story-display";
 import styles from "./DayNav.module.css";
 
@@ -18,9 +16,8 @@ interface DayNavProps {
   next?: string;
   /** Every category with stories, and its latest day, to switch to. */
   categories: { category: string; latestDay: string }[];
-  /** Kept when switching days or categories. */
-  view: DayView;
-  status?: Agreement;
+  /** The day view the links go to: the Stories page unless given. */
+  base?: string;
 }
 
 /** The day's heading, with links to the days around it and other categories. */
@@ -30,11 +27,9 @@ export function DayNav({
   previous,
   next,
   categories,
-  view,
-  status,
+  base = "/",
 }: DayNavProps) {
-  const href = (toCategory: string, toDay: string) =>
-    dayHref(toCategory, toDay, { view, status });
+  const href = (toCategory: string, toDay: string) => dayHref(toCategory, toDay, base);
   const previousHref = previous && href(category, previous);
   const nextHref = next && href(category, next);
 

@@ -13,7 +13,7 @@ export const gnewsStoryRelevanceOverride: RelationDataset = {
   kind: DatasetKind.Table,
   name: "news.gnews_story_relevance_override",
   description:
-    "Editors' category relevance and importance for a story, which take precedence over the model's.",
+    "Editors' verdicts on whether a story is relevant, which take precedence over the model's ratings.",
   editorial: true,
 };
 
@@ -28,7 +28,7 @@ export const vGnewsStoryRanked: RelationDataset = {
   kind: DatasetKind.View,
   name: "news.v_gnews_story_ranked",
   description:
-    "Stories with their effective ratings, ranked within each category and day.",
+    "Stories with their ratings, sorted into relevant or not and ranked within each category and day.",
   sortBy: [
     { column: "published_date", direction: SortDirection.Descending },
     { column: "relevance_rank", direction: SortDirection.Ascending },
@@ -39,7 +39,7 @@ export const relevanceClassification: PipelineJob = {
   id: "relevance-classification",
   name: "Relevance classification",
   summary:
-    "Rates each story's fit with its category and its importance with an LLM, then ranks each day's stories.",
+    "Rates each story's fit with its category and its importance with an LLM, then sorts each day's stories into relevant or not and ranks them.",
   inputs: [vGnewsStory, vGnewsArticleDaily, gnewsStoryRelevanceOverride],
   steps: [
     {
@@ -61,17 +61,17 @@ export const relevanceClassification: PipelineJob = {
     },
     {
       kind: PipelineJobStepKind.Sql,
-      name: "Rank stories",
+      name: "Sort and rank stories",
       description:
-        "Takes each story's latest rating, lets editors' ratings take precedence, and ranks each day's stories: those that fit the category (relevance 3 or more) first, then by importance. rating_is_current is false when the story's articles have changed since it was rated.",
+        "Takes each story's latest rating and decides whether it's relevant: in its category and of moderate importance or more, 3 or more on both scales. An editor's verdict takes precedence. Relevant stories rank first, then the rest, each by importance. rating_is_current is false when the story's articles have changed since it was rated.",
       status: Status.Implemented,
       produces: [vGnewsStoryRanked],
     },
   ],
   notes: [
-    "Category relevance and importance are kept separate: fit decides whether a story belongs in its category's feed, and importance its place there.",
+    "The model rates on two scales, but readers see two groups: relevant stories, and the rest. Minor and trivial stories, and those outside the category, aren't relevant. The scales still order the stories within each group.",
     "Rating stories rather than articles avoids rating the same story repeatedly.",
     "Every rating is kept with its model, rubric version and articles, and with the model's full response.",
-    "Editors can override both scores from the story page; the model's ratings are kept alongside.",
+    "Editors can mark a story relevant or not from the story page; the model's ratings are kept alongside and still set its place.",
   ],
 };

@@ -73,7 +73,7 @@ export const storyClustering: PipelineJob = {
       kind: PipelineJobStepKind.Sql,
       name: "Summarize stories",
       description:
-        "One row per story: its article count and IDs, every outlet carrying it (syndicated copies included), and its lead article, the one carried by the most outlets, then the earliest. edited is true when an editor placed any of its articles.",
+        "One row per story: its article count and IDs, every outlet carrying it (syndicated copies included) with the URL of its copy, and its lead article, the one carried by the most outlets, then the earliest, with its image. edited is true when an editor placed any of its articles.",
       status: Status.Implemented,
       produces: [vGnewsStory],
     },

@@ -1,114 +1,131 @@
 .group + .group {
-  margin-top: 24px;
+  margin-top: 14px;
 }
 
 .heading {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0;
-  font-size: 1rem;
-}
-
-.count {
-  padding: 0 7px;
-  border-radius: 999px;
-  background: var(--surface-muted);
+  margin: 0 0 4px;
   color: var(--text-muted);
   font-size: 12px;
-  line-height: 1.6;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .group[data-agreement="disputed"] .heading {
   color: var(--warning);
 }
 
-.description {
-  margin: 2px 0 10px;
-  color: var(--text-muted);
-  font-size: 14px;
+.count {
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  letter-spacing: 0;
+  line-height: 1.6;
 }
 
 .claims {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.claim {
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-}
-
-.group[data-agreement="disputed"] .claim {
-  border-left: 3px solid var(--warning);
-}
-
+/* A bullet that turns to show the claim is open. */
 .statement {
-  margin: 0;
+  position: relative;
+  display: block;
+  padding: 2px 0 2px 18px;
+  cursor: pointer;
+  list-style: none;
 }
 
-.sources {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 16px;
-  margin: 6px 0;
+.statement::-webkit-details-marker {
+  display: none;
+}
+
+.statement::before {
+  content: "";
+  position: absolute;
+  top: calc(2px + 0.75em);
+  left: 4px;
+  border-width: 4px 0 4px 6px;
+  border-style: solid;
+  border-color: transparent transparent transparent var(--text-muted);
+  transform: translateY(-50%);
+  transition: transform 120ms ease;
+}
+
+details[open] > .statement::before {
+  transform: translateY(-50%) rotate(90deg);
+}
+
+/* Where each outlet being compared stands on the claim. */
+.stances {
+  display: block;
+  color: var(--text-muted);
   font-size: 13px;
 }
 
-.contradicted {
+.stances [data-stance="contradicts"] {
   color: var(--warning);
-  font-weight: 600;
 }
 
-.muted {
+.statement:hover {
+  color: var(--accent);
+}
+
+.statement:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 2px 0 10px 18px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border);
+  font-size: 14px;
+}
+
+.details p {
+  margin: 0;
+}
+
+.kind {
   color: var(--text-muted);
+  font-style: italic;
+}
+
+.label {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sources[data-stance="contradicts"] .label {
+  color: var(--warning);
 }
 
 .evidence {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin: 0;
-  padding-left: 18px;
-  font-size: 14px;
+  gap: 2px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
 }
 
 .outlet {
   font-weight: 600;
 }
 
-.story {
-  margin: 0 0 6px;
+.muted {
   color: var(--text-muted);
-  font-size: 13px;
-}
-
-/* Compact lists, as on story cards: no evidence, tighter spacing. */
-.group[data-compact] + .group[data-compact] {
-  margin-top: 12px;
-}
-
-.group[data-compact] .heading {
-  margin-bottom: 6px;
-  font-size: 13px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.group[data-compact] .claims {
-  gap: 6px;
-}
-
-.group[data-compact] .claim {
-  padding: 8px 10px;
-}
-
-.group[data-compact] .sources {
-  margin-bottom: 0;
 }

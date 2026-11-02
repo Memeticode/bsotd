@@ -62,19 +62,23 @@ test("IDs must be positive whole numbers", () => {
   assert.deepEqual(parseStoryId(form({ storyId: "42" })), { ok: true, value: "42" });
 });
 
-test("editors' ratings take two scores from 1 to 5", () => {
-  const fields = { storyId: "7", categoryRelevance: "5" };
+test("editors mark a story relevant or not", () => {
+  const fields = { storyId: "7" };
 
-  assert.deepEqual(parseRelevanceOverride(form({ ...fields, importance: "2" })), {
+  assert.deepEqual(
+    parseRelevanceOverride(form({ ...fields, relevant: "false", note: " Minor " })),
+    { ok: true, value: { storyId: "7", isRelevant: false, note: "Minor" } },
+  );
+  assert.deepEqual(parseRelevanceOverride(form({ ...fields, relevant: "true" })), {
     ok: true,
-    value: { storyId: "7", categoryRelevance: 5, importance: 2, note: null },
+    value: { storyId: "7", isRelevant: true, note: null },
   });
 
-  for (const importance of ["", "0", "6", "2.5"]) {
+  for (const relevant of ["", "yes", "1"]) {
     assert.equal(
-      parseRelevanceOverride(form({ ...fields, importance })).ok,
+      parseRelevanceOverride(form({ ...fields, relevant })).ok,
       false,
-      `importance "${importance}"`,
+      `relevant "${relevant}"`,
     );
   }
 });

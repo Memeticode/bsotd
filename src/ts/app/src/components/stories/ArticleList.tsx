@@ -1,33 +1,32 @@
+import { MoveArticleForm } from "@/components/editor/MoveArticleForm";
 import { Collapsible } from "@/components/ui/Collapsible";
 import { Tag } from "@/components/ui/Tag";
 import type { StoryArticle, StoryOption } from "@/lib/stories";
 import { formatTime, listOutlets } from "@/lib/story-display";
-import { MoveArticleForm } from "./MoveArticleForm";
 import styles from "./ArticleList.module.css";
 
 interface ArticleListProps {
-  storyId: string;
   articles: StoryArticle[];
-  /** Articles the rating model judged to report a different event. */
-  flagged: Set<string>;
-  /** The day's other stories, which articles can move to. */
-  targets: StoryOption[];
+  /** For editors: flags, and a way to move each article. */
+  edit?: {
+    storyId: string;
+    /** Articles the rating model judged to report a different event. */
+    flagged: Set<string>;
+    /** The day's other stories, which articles can move to. */
+    targets: StoryOption[];
+  };
 }
 
-/** The story's articles, each with a way for editors to move it. */
-export function ArticleList({
-  storyId,
-  articles,
-  flagged,
-  targets,
-}: ArticleListProps) {
+/** The story's articles, each linking to the outlet's page. */
+export function ArticleList({ articles, edit }: ArticleListProps) {
   return (
     <ol className={styles.articles}>
       {articles.map((article) => {
         const others = article.carriedBy.filter(
           (name) => name !== article.sourceName,
         );
-        const isFlagged = flagged.has(article.id);
+        const isFlagged = edit?.flagged.has(article.id) ?? false;
+        const placedByEditor = edit !== undefined && article.assignedBy === "editor";
 
         return (
           <li key={article.id} className={styles.article}>
@@ -51,23 +50,25 @@ export function ArticleList({
                 <span>Also run word for word by {listOutlets(others)}</span>
               )}
             </p>
-            {(isFlagged || article.assignedBy === "editor") && (
+            {(isFlagged || placedByEditor) && (
               <p className={styles.tags}>
                 {isFlagged && <Tag tone="warning">May report a different event</Tag>}
-                {article.assignedBy === "editor" && <Tag>Placed by an editor</Tag>}
+                {placedByEditor && <Tag>Placed by an editor</Tag>}
               </p>
             )}
             {article.description && (
               <p className={styles.description}>{article.description}</p>
             )}
-            <Collapsible summary="Move to another story" defaultOpen={isFlagged}>
-              <MoveArticleForm
-                storyId={storyId}
-                articleId={article.id}
-                targets={targets}
-                canSplit={articles.length > 1}
-              />
-            </Collapsible>
+            {edit && (
+              <Collapsible summary="Move to another story" defaultOpen={isFlagged}>
+                <MoveArticleForm
+                  storyId={edit.storyId}
+                  articleId={article.id}
+                  targets={edit.targets}
+                  canSplit={articles.length > 1}
+                />
+              </Collapsible>
+            )}
           </li>
         );
       })}

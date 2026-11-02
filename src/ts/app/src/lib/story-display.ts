@@ -54,19 +54,107 @@ export const CLAIM_KIND_LABELS: Record<ClaimKind, string> = {
   [ClaimKind.Interpretation]: "Interpretation",
 };
 
-/** The rubric's 1–5 scales, as relevance classification defines them. */
-export const IMPORTANCE_LABELS = ["Trivial", "Minor", "Moderate", "Significant", "Major"];
-export const CATEGORY_RELEVANCE_LABELS = [
-  "Outside it",
-  "Mostly outside",
-  "Partly in",
-  "Clearly in",
-  "Squarely in",
-];
+/** An outlet's copy of an article, and where to read it. */
+export interface Source {
+  name: string;
+  url: string | null;
+}
 
-/** e.g. 4 -> "Significant (4/5)" */
-export function scoreLabel(labels: string[], score: number): string {
-  return `${labels[score - 1] ?? "Unknown"} (${score}/5)`;
+/**
+ * The address, if it's a web page's: links come from the outlets' feeds,
+ * so nothing else, such as a javascript: URL, becomes a link.
+ */
+export function webUrl(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const { protocol } = new URL(value);
+    return protocol === "https:" || protocol === "http:" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Sources labeled by outlet for listing side by side. An outlet with more
+ * than one copy numbers the rest, e.g. "CNN", "CNN (2)".
+ */
+export function labelSources<S extends Source>(sources: S[]): (S & { label: string })[] {
+  const seen = new Map<string, number>();
+
+  return sources.map((source) => {
+    const copy = (seen.get(source.name) ?? 0) + 1;
+    seen.set(source.name, copy);
+    return { ...source, label: copy === 1 ? source.name : `${source.name} (${copy})` };
+  });
+}
+
+/** What a claim's status depends on, as v_gnews_story_claim gives it. */
+interface SourcedClaim {
+  agreement: Agreement;
+  supportingReports: number;
+  contradictingReports: number;
+  sources: { articleId: string; stance: Stance }[];
+  notMentionedArticleIds: string[];
+  /** Article ID -> its report's ID: syndicated copies share one. */
+  reportIds: Record<string, string>;
+}
+
+/** Where each of some outlets stands on a claim, for comparing them. */
+export interface OutletStances {
+  reports: string[];
+  contradicts: string[];
+  /** Outlets that neither report nor contradict it. */
+  silent: string[];
+}
+
+/**
+ * Where each of the given outlets stands on a claim, in the order given. An
+ * outlet with articles on both sides is listed on both.
+ */
+export function stancesOf(
+  claim: SourcedClaim,
+  outletOf: (articleId: string) => string,
+  outlets: Iterable<string>,
+): OutletStances {
+  const taking = (stance: Stance) =>
+    new Set(
+      claim.sources
+        .filter((source) => source.stance === stance)
+        .map((source) => outletOf(source.articleId)),
+    );
+  const reporting = taking(Stance.Supports);
+  const contradicting = taking(Stance.Contradicts);
+  const all = [...outlets];
+
+  return {
+    reports: all.filter((outlet) => reporting.has(outlet)),
+    contradicts: all.filter((outlet) => contradicting.has(outlet)),
+    silent: all.filter((outlet) => !reporting.has(outlet) && !contradicting.has(outlet)),
+  };
+}
+
+/**
+ * How many independent reports a story's claims rest on, counting copies of
+ * one report once. With one, there's nothing to compare: every claim is
+ * that one source's.
+ */
+export function countReports(claims: SourcedClaim[]): number {
+  return new Set(
+    claims.flatMap((claim) =>
+      claim.sources.map((source) => claim.reportIds[source.articleId] ?? source.articleId),
+    ),
+  ).size;
+}
+
+/**
+ * Whether a story rests on a single source: one article, or claims that all
+ * come from copies of one report.
+ */
+export function isSingleSource(articleCount: number, claims: SourcedClaim[]): boolean {
+  return articleCount === 1 || (claims.length > 0 && countReports(claims) <= 1);
 }
 
 /** Disputed claims first: disagreement is what readers most need to see. */
@@ -83,17 +171,45 @@ export function groupClaims<Claim extends { agreement: Agreement }>(
 
 /**
  * The title a story goes by: its analysis's headline, unless an editor
- * rejected the analysis, and otherwise its lead article's title.
+ * rejected the analysis, and otherwise its lead article's title. A single
+ * source's story keeps that source's own headline, unchanged: with nothing
+ * to weigh it against, there's no call to rewrite it.
  */
-export function storyTitle(story: {
-  headline: string | null;
-  reviewVerdict: ReviewVerdict | null;
-  leadTitle: string | null;
-}): string {
+export function storyTitle(
+  story: {
+    headline: string | null;
+    reviewVerdict: ReviewVerdict | null;
+    leadTitle: string | null;
+  },
+  singleSource = false,
+): string {
   const headline =
-    story.reviewVerdict === ReviewVerdict.Rejected ? null : story.headline;
+    singleSource || story.reviewVerdict === ReviewVerdict.Rejected
+      ? null
+      : story.headline;
 
   return headline ?? story.leadTitle ?? "Untitled story";
+}
+
+/** The title a story's pages go by, from what they've read of it. */
+export function pageTitle(
+  story: { leadTitle: string | null; articleCount: number },
+  analysis: { headline: string; reviewVerdict: ReviewVerdict | null } | undefined,
+  claims: SourcedClaim[],
+): string {
+  return storyTitle(
+    {
+      headline: analysis?.headline ?? null,
+      reviewVerdict: analysis?.reviewVerdict ?? null,
+      leadTitle: story.leadTitle,
+    },
+    isSingleSource(story.articleCount, claims),
+  );
+}
+
+/** Story IDs are bigints; anything else in an address can't name a story. */
+export function isStoryId(value: string): boolean {
+  return /^[1-9]\d{0,18}$/.test(value);
 }
 
 /**
@@ -171,42 +287,126 @@ export function adjacentDays(
   };
 }
 
-/** The Stories page's two views of a day. */
-export const DayView = {
-  Stories: "stories",
-  Claims: "claims",
-} as const;
+/** A day view's address for a category and day: the Stories page's by default. */
+export function dayHref(category: string, day: string, base = "/"): string {
+  return `${base}?${new URLSearchParams({ category, date: day })}`;
+}
 
-export type DayView = (typeof DayView)[keyof typeof DayView];
+/** The category and day a day view shows, from what the address asks for. */
+export interface DayChoice {
+  /** Every category with stories, and its latest day. */
+  categories: { category: string; latestDay: string }[];
+  category: string;
+  day: string;
+  /** A day asked for that has no stories in the category, if any. */
+  missingDay?: string;
+}
 
 /**
- * The Stories page's address for a category and day, in the stories view
- * unless another is given, with its claims narrowed to one status if given.
+ * Chooses the day to show: the one asked for if it has stories, otherwise
+ * the category's latest. An unknown category falls back to the one with the
+ * latest stories. Days come latest first; undefined when there are none.
  */
-export function dayHref(
-  category: string,
-  day: string,
-  { view, status }: { view?: DayView; status?: Agreement } = {},
-): string {
-  const params = new URLSearchParams({ category, date: day });
+export function chooseDay(
+  days: { category: string; publishedDate: string }[],
+  requestedCategory: string | undefined,
+  requestedDay: string | undefined,
+): DayChoice | undefined {
+  // Days come latest first, so a category's first day is its latest.
+  const latestDays = new Map<string, string>();
 
-  if (view !== undefined && view !== DayView.Stories) {
-    params.set("view", view);
+  for (const { category, publishedDate } of days) {
+    if (!latestDays.has(category)) {
+      latestDays.set(category, publishedDate);
+    }
   }
 
-  if (status !== undefined) {
-    params.set("status", status);
+  const categories = [...latestDays].map(([category, latestDay]) => ({
+    category,
+    latestDay,
+  }));
+
+  if (categories.length === 0) {
+    return undefined;
   }
 
-  return `/?${params}`;
+  const category =
+    requestedCategory !== undefined && latestDays.has(requestedCategory)
+      ? requestedCategory
+      : categories[0]!.category;
+
+  const dayExists = days.some(
+    (day) => day.category === category && day.publishedDate === requestedDay,
+  );
+
+  return {
+    categories,
+    category,
+    day: dayExists ? requestedDay! : latestDays.get(category)!,
+    missingDay: requestedDay !== undefined && !dayExists ? requestedDay : undefined,
+  };
 }
 
-/** The view an address asks for, defaulting to stories. */
-export function parseDayView(value: unknown): DayView {
-  return value === DayView.Claims ? DayView.Claims : DayView.Stories;
+/**
+ * A filter's selection after clicking one of its options: the first pick
+ * narrows to it, later picks add to it, and picking a chosen option again
+ * takes it away. An empty selection means everything.
+ */
+export function toggleOption<Option>(
+  selection: ReadonlySet<Option>,
+  option: Option,
+): Set<Option> {
+  const next = new Set(selection);
+
+  if (!next.delete(option)) {
+    next.add(option);
+  }
+
+  return next;
 }
 
-/** The status an address asks for, if it names one. */
-export function parseAgreement(value: unknown): Agreement | undefined {
-  return Object.values(Agreement).find((agreement) => agreement === value);
+/**
+ * A story's claims through its filters: those any chosen outlet reports or
+ * contradicts, then those of the chosen statuses. Filters only narrow the
+ * list: a claim's status always counts every source in the story. An empty
+ * choice means all.
+ */
+export function filterClaims<Claim extends SourcedClaim>(
+  claims: Claim[],
+  outletOf: (articleId: string) => string,
+  outlets: ReadonlySet<string>,
+  statuses: ReadonlySet<Agreement>,
+): { bySource: Claim[]; shown: Claim[] } {
+  const bySource =
+    outlets.size === 0
+      ? claims
+      : claims.filter((claim) =>
+          claim.sources.some((source) => outlets.has(outletOf(source.articleId))),
+        );
+
+  return {
+    bySource,
+    shown:
+      statuses.size === 0
+        ? bySource
+        : bySource.filter((claim) => statuses.has(claim.agreement)),
+  };
+}
+
+/** Every outlet the claims cite, with how many claims each is behind, most first. */
+export function citationCounts(
+  claims: SourcedClaim[],
+  outletOf: (articleId: string) => string,
+): [outlet: string, claims: number][] {
+  const counts = new Map<string, number>();
+
+  for (const claim of claims) {
+    for (const outlet of new Set(claim.sources.map((s) => outletOf(s.articleId)))) {
+      counts.set(outlet, (counts.get(outlet) ?? 0) + 1);
+    }
+  }
+
+  return [...counts].sort(
+    ([a, aCount], [b, bCount]) => bCount - aCount || a.localeCompare(b),
+  );
 }

@@ -42,14 +42,10 @@ class GNewsStoryAnalysis:
         repository: GNewsStoryAnalysisRepository,
         llm: StructuredLlm | None,
         model: str,
-        min_importance: int = 2,
         limit: int = 5,
     ) -> None:
         if llm is not None and llm.model != model:
             raise ValueError("LLM model does not match model")
-
-        if not 1 <= min_importance <= 5:
-            raise ValueError("min_importance must be between 1 and 5")
 
         if limit < 1:
             raise ValueError("limit must be positive")
@@ -57,7 +53,6 @@ class GNewsStoryAnalysis:
         self._repository = repository
         self._llm = llm
         self._model = model
-        self._min_importance = min_importance
         self._limit = limit
 
     def analyze(
@@ -69,10 +64,10 @@ class GNewsStoryAnalysis:
         if not dry_run and self._llm is None:
             raise ValueError("An LLM is required for live analysis")
 
-        # Only stories that fit their category and matter enough, by
-        # their editors' or else the model's ratings.
+        # Only relevant stories, by an editor's verdict or else the
+        # model's ratings.
         stories = self._repository.get_relevant_stories(
-            category, published_date, self._min_importance, self._limit
+            category, published_date, self._limit
         )
         analyzed = self._repository.get_input_hashes(
             [story.id for story in stories], self._model, PROMPT_VERSION

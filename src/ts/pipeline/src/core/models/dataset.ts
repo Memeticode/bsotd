@@ -1,13 +1,30 @@
 import type { SortKey } from "./sort-key.ts";
 
 export const DatasetKind = {
+  External: "external",
+  Planned: "planned",
   Table: "table",
   View: "view",
-  Planned: "planned",
-  External: "external",
 } as const;
 
 export type DatasetKind = (typeof DatasetKind)[keyof typeof DatasetKind];
+
+/** Data that enters the pipeline from outside, such as an API. */
+export interface ExternalDataset {
+  kind: typeof DatasetKind.External;
+  name: string;
+  description: string;
+  url: string;
+}
+
+/** An output whose storage hasn't been designed yet. */
+export interface PlannedDataset {
+  kind: typeof DatasetKind.Planned;
+  name: string;
+  description: string;
+  /** What the output is expected to hold, in words. */
+  expectedFields: string[];
+}
 
 /**
  * A table or view in PostgreSQL. Its columns and their types are read from
@@ -25,23 +42,6 @@ export interface RelationDataset {
    * corrections that jobs apply. Jobs read it without a job producing it.
    */
   editorial?: boolean;
-}
-
-/** An output whose storage hasn't been designed yet. */
-export interface PlannedDataset {
-  kind: typeof DatasetKind.Planned;
-  name: string;
-  description: string;
-  /** What the output is expected to hold, in words. */
-  expectedFields: string[];
-}
-
-/** Data that enters the pipeline from outside, such as an API. */
-export interface ExternalDataset {
-  kind: typeof DatasetKind.External;
-  name: string;
-  description: string;
-  url: string;
 }
 
 /** Datasets a step can write. */

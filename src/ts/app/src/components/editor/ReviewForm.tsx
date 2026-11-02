@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 
-import { clearReviewAction, reviewAnalysisAction } from "@/app/stories/actions";
+import { clearReviewAction, reviewAnalysisAction } from "@/app/editor/actions";
 import { IDLE } from "@/lib/action-state";
 import { ReviewVerdict } from "@/lib/story-display";
 import { ActionMessage } from "./ActionMessage";

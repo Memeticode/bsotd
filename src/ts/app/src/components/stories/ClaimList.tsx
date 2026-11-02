@@ -1,7 +1,5 @@
-import Link from "next/link";
+import { Fragment } from "react";
 
-import { Collapsible } from "@/components/ui/Collapsible";
-import { Tag } from "@/components/ui/Tag";
 import type { StoryClaim } from "@/lib/stories";
 import {
   AGREEMENT_DESCRIPTIONS,
@@ -9,20 +7,24 @@ import {
   ClaimKind,
   Stance,
   groupClaims,
+  listOutlets,
+  stancesOf,
+  type Source,
 } from "@/lib/story-display";
+import { SourceLink, SourceLinkList } from "./SourceLink";
 import styles from "./ClaimList.module.css";
 
-/** A claim, and the story it comes from when listing several stories' claims. */
-type ListedClaim = StoryClaim & { storyId?: string };
-
 interface ClaimListProps {
-  claims: ListedClaim[];
-  /** Outlet name by article ID. */
-  outlets: Map<string, string>;
-  /** Story titles by ID: given, each claim links to its story. */
-  stories?: Map<string, string>;
-  /** Statements and outlets only, without descriptions or evidence. */
-  compact?: boolean;
+  claims: StoryClaim[];
+  /** The outlet behind each article, and its link, by article ID. */
+  sources: Record<string, Source>;
+  /**
+   * Groups the claims by status, disputed first. A single source's claims
+   * all share one, so they're listed as they come.
+   */
+  grouped?: boolean;
+  /** Outlets being compared: each claim shows where each one stands. */
+  compared?: string[];
   /** The level of each status's heading. */
   headingLevel?: 2 | 3 | 4;
   /** Makes the headings' IDs unique when a page has several lists. */
@@ -30,18 +32,23 @@ interface ClaimListProps {
 }
 
 /**
- * Claims grouped by how their sources line up, disputed first, each with
- * the outlets behind it and their quoted evidence.
+ * Claims as a bulleted list, grouped by status unless they're a single
+ * source's. Each claim opens to show the outlets that report, contradict or
+ * leave it out, in their own words, each linking to its article.
  */
 export function ClaimList({
   claims,
-  outlets,
-  stories,
-  compact = false,
+  sources,
+  grouped = true,
+  compared,
   headingLevel = 3,
   idPrefix = "claims",
 }: ClaimListProps) {
   const Heading = `h${headingLevel}` as const;
+
+  if (!grouped) {
+    return <Claims claims={claims} sources={sources} compared={compared} />;
+  }
 
   return groupClaims(claims).map((group) => {
     const id = `${idPrefix}-${group.agreement.replaceAll(" ", "-")}`;
@@ -51,93 +58,147 @@ export function ClaimList({
         key={group.agreement}
         className={styles.group}
         data-agreement={group.agreement}
-        data-compact={compact || undefined}
         aria-labelledby={id}
       >
-        <Heading id={id} className={styles.heading}>
+        <Heading
+          id={id}
+          className={styles.heading}
+          title={AGREEMENT_DESCRIPTIONS[group.agreement]}
+        >
           {AGREEMENT_LABELS[group.agreement]}
           <span className={styles.count}>{group.claims.length}</span>
         </Heading>
-        {!compact && (
-          <p className={styles.description}>
-            {AGREEMENT_DESCRIPTIONS[group.agreement]}
-          </p>
-        )}
-        <ul className={styles.claims}>
-          {group.claims.map((claim) => (
-            <Claim
-              key={`${claim.storyId ?? ""}-${claim.number}`}
-              claim={claim}
-              outlets={outlets}
-              story={claim.storyId ? stories?.get(claim.storyId) : undefined}
-              compact={compact}
-            />
-          ))}
-        </ul>
+        <Claims claims={group.claims} sources={sources} compared={compared} />
       </section>
     );
   });
 }
 
-interface ClaimProps {
-  claim: ListedClaim;
-  outlets: Map<string, string>;
-  /** The title of the claim's story, to link to. */
-  story?: string;
-  compact: boolean;
+/** Each claim as a bullet that opens to show its sources. */
+function Claims({
+  claims,
+  sources,
+  compared,
+}: {
+  claims: StoryClaim[];
+  sources: Record<string, Source>;
+  compared?: string[];
+}) {
+  return (
+    <ul className={styles.claims}>
+      {claims.map((claim) => (
+        <li key={claim.number}>
+          <details>
+            <summary className={styles.statement}>
+              {claim.statement}
+              {compared && (
+                <Stances
+                  claim={claim}
+                  outletOf={(id) => sources[id]?.name ?? ""}
+                  outlets={compared}
+                />
+              )}
+            </summary>
+            <ClaimDetails claim={claim} sources={sources} />
+          </details>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
-function Claim({ claim, outlets, story, compact }: ClaimProps) {
-  const name = (articleId: string) =>
-    outlets.get(articleId) ?? "an article since moved";
-  const names = (articleIds: string[]) => articleIds.map(name).join(", ");
-
-  const supporting = claim.sources.filter((s) => s.stance === Stance.Supports);
-  const contradicting = claim.sources.filter(
-    (s) => s.stance === Stance.Contradicts,
-  );
+/** e.g. "Reported by CNN · contradicted by WSTM · not mentioned by WMUR" */
+function Stances({
+  claim,
+  outletOf,
+  outlets,
+}: {
+  claim: StoryClaim;
+  outletOf: (articleId: string) => string;
+  outlets: string[];
+}) {
+  const { reports, contradicts, silent } = stancesOf(claim, outletOf, outlets);
+  const parts = [
+    { label: "reported by", names: reports, stance: Stance.Supports },
+    { label: "contradicted by", names: contradicts, stance: Stance.Contradicts },
+    { label: "not mentioned by", names: silent, stance: undefined },
+  ].filter((part) => part.names.length > 0);
 
   return (
-    <li className={styles.claim}>
-      <p className={styles.statement}>
-        {claim.statement}{" "}
-        {claim.kind === ClaimKind.Interpretation && <Tag>Interpretation</Tag>}
-      </p>
-      <p className={styles.sources}>
-        {supporting.length > 0 && (
-          <span>Reported by {names(supporting.map((s) => s.articleId))}</span>
-        )}
-        {contradicting.length > 0 && (
-          <span className={styles.contradicted}>
-            Contradicted by {names(contradicting.map((s) => s.articleId))}
+    <span className={styles.stances}>
+      {parts.map((part, index) => (
+        <Fragment key={part.label}>
+          {index > 0 && " · "}
+          <span data-stance={part.stance}>
+            {index === 0 ? part.label.replace(/^./, (c) => c.toUpperCase()) : part.label}{" "}
+            {listOutlets(part.names, part.names.length)}
           </span>
-        )}
-        {!compact && claim.notMentionedArticleIds.length > 0 && (
-          <span className={styles.muted}>
-            Not mentioned by {names(claim.notMentionedArticleIds)}
-          </span>
-        )}
-      </p>
-      {story !== undefined && claim.storyId !== undefined && (
-        <p className={styles.story}>
-          From <Link href={`/stories/${claim.storyId}`}>{story}</Link>
+        </Fragment>
+      ))}
+    </span>
+  );
+}
+
+interface ClaimDetailsProps {
+  claim: StoryClaim;
+  sources: Record<string, Source>;
+}
+
+function ClaimDetails({ claim, sources }: ClaimDetailsProps) {
+  const source = (articleId: string): Source =>
+    sources[articleId] ?? { name: "An article since moved", url: null };
+
+  return (
+    <div className={styles.details}>
+      {claim.kind === ClaimKind.Interpretation && (
+        <p className={styles.kind}>
+          An interpretation: analysis, prediction or opinion.
         </p>
       )}
-      {!compact && (
-        <Collapsible summary="Evidence">
-          <ul className={styles.evidence}>
-            {claim.sources.map((source) => (
-              <li key={source.articleId}>
-                <span className={styles.outlet}>
-                  {name(source.articleId)}
-                  {source.stance === Stance.Contradicts && " (contradicts)"}
-                </span>{" "}
-                <q>{source.evidence}</q>
-              </li>
-            ))}
-          </ul>
-        </Collapsible>
+      <Sources
+        label="Reported by"
+        sources={claim.sources.filter((s) => s.stance === Stance.Supports)}
+        source={source}
+      />
+      <Sources
+        label="Contradicted by"
+        sources={claim.sources.filter((s) => s.stance === Stance.Contradicts)}
+        source={source}
+      />
+      {claim.notMentionedArticleIds.length > 0 && (
+        <p className={styles.muted}>
+          Not mentioned by{" "}
+          <SourceLinkList sources={claim.notMentionedArticleIds.map(source)} />
+        </p>
       )}
-    </li>
+    </div>
+  );
+}
+
+function Sources({
+  label,
+  sources,
+  source,
+}: {
+  label: string;
+  sources: StoryClaim["sources"];
+  source: (articleId: string) => Source;
+}) {
+  if (sources.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className={styles.sources} data-stance={sources[0]!.stance}>
+      <p className={styles.label}>{label}</p>
+      <ul className={styles.evidence}>
+        {sources.map(({ articleId, evidence }) => (
+          <li key={articleId}>
+            <SourceLink source={source(articleId)} className={styles.outlet} />{" "}
+            <q>{evidence}</q>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

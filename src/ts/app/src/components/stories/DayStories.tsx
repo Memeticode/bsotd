@@ -1,46 +1,37 @@
-import Link from "next/link";
-
 import { Collapsible } from "@/components/ui/Collapsible";
 import type { DayClaim, FeedStory } from "@/lib/stories";
-import { categoryLabel, count, formatDay, storyTitle } from "@/lib/story-display";
+import { count, type Source } from "@/lib/story-display";
 import { StoryCard } from "./StoryCard";
 import styles from "./DayStories.module.css";
 
 interface DayStoriesProps {
-  category: string;
-  day: string;
   stories: FeedStory[];
   claims: DayClaim[];
-  /** Outlet name by article ID. */
-  outlets: Map<string, string>;
+  /** The outlet behind each of the day's articles, and its link, by article ID. */
+  sources: Map<string, Source>;
 }
 
 /**
- * The day's stories, most relevant first: those that fit the category, then
- * those not rated yet, then those outside the category, collapsed.
+ * The day's stories in two groups: the relevant ones, most important first,
+ * and the rest, collapsed. Stories not rated yet are in neither, between.
  */
-export function DayStories({
-  category,
-  day,
-  stories,
-  claims,
-  outlets,
-}: DayStoriesProps) {
+export function DayStories({ stories, claims, sources }: DayStoriesProps) {
   const claimsByStory = Map.groupBy(claims, (claim) => claim.storyId);
-  const fitting = stories.filter((story) => story.fitsCategory === true);
-  const unrated = stories.filter((story) => story.fitsCategory === null);
-  const outside = stories.filter((story) => story.fitsCategory === false);
-  const articles = stories.reduce((total, story) => total + story.articleCount, 0);
-  const outsideCount = count(outside.length, "story", "stories");
 
-  const feed = (list: FeedStory[]) => (
+  const relevant = stories.filter((story) => story.isRelevant === true);
+  const unrated = stories.filter((story) => story.isRelevant === null);
+  const notRelevant = stories.filter((story) => story.isRelevant === false);
+  const articles = stories.reduce((total, story) => total + story.articleCount, 0);
+
+  const feed = (list: FeedStory[], ranked: boolean) => (
     <ol className={styles.feed}>
       {list.map((story) => (
         <li key={story.id}>
           <StoryCard
             story={story}
             claims={claimsByStory.get(story.id) ?? []}
-            outlets={outlets}
+            sources={sources}
+            ranked={ranked}
           />
         </li>
       ))}
@@ -51,35 +42,32 @@ export function DayStories({
     <>
       <p className={styles.stats}>
         {count(stories.length, "story", "stories")} from{" "}
-        {count(articles, "article")}, most relevant first.
+        {count(articles, "article")},{" "}
+        {relevant.length === 0 ? "none" : relevant.length} relevant.
       </p>
 
-      {fitting.length > 0 && feed(fitting)}
+      {relevant.length > 0
+        ? feed(relevant, true)
+        : unrated.length === 0 && (
+            <p className={styles.empty}>No relevant stories this day.</p>
+          )}
 
       {unrated.length > 0 && (
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>Not rated yet</h2>
           <p className={styles.sectionNote}>
-            Rating runs after clustering: <code>rate_gnews.py</code> for{" "}
-            {formatDay(day)}.
+            These stories haven't been sorted into relevant or not yet.
           </p>
-          {feed(unrated)}
+          {feed(unrated, false)}
         </section>
       )}
 
-      {outside.length > 0 && (
+      {notRelevant.length > 0 && (
         <section className={styles.section}>
-          <Collapsible summary={`${outsideCount} outside ${categoryLabel(category)}`}>
-            <ul className={styles.outside}>
-              {outside.map((story) => (
-                <li key={story.id}>
-                  <Link href={`/stories/${story.id}`}>{storyTitle(story)}</Link>{" "}
-                  <span className={styles.muted}>
-                    {count(story.articleCount, "article")}
-                  </span>
-                </li>
-              ))}
-            </ul>
+          <Collapsible
+            summary={`Not relevant: ${count(notRelevant.length, "story", "stories")}`}
+          >
+            {feed(notRelevant, false)}
           </Collapsible>
         </section>
       )}

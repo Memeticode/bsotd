@@ -1,0 +1,25 @@
+.main {
+  display: flex;
+  max-width: 960px;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+.note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+@media (max-width: 760px) {
+  .main {
+    padding: 24px 16px 48px;
+  }
+}
